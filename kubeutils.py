@@ -2,7 +2,46 @@ import yaml
 import os
 import copy
 import itertools
+import subprocess
+import json
 from typing import List
+
+
+with open("config/kube.yaml", "r") as f:
+    settings = yaml.safe_load(f)
+    
+
+def check_job_status(name):
+    # Get the job information in JSON format
+    result = subprocess.run(
+        ["kubectl", "--namespace=" + settings["namespace"], "get", "job", name, "-o=json"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if result.returncode == 0:
+        job_info = json.loads(result.stdout)
+        for condition in job_info.get("status", {}).get("conditions", []):
+            if condition.get("type") == "Failed":
+                return "failed"
+        if job_info.get("status", {}).get("succeeded", 0) > 0:
+            return "succeeded"
+        if job_info.get("status", {}).get("active", 0) > 0:
+            return "running"
+        if job_info.get("status", {}).get("failed", 0) > 0:
+            return "failed"
+        
+        return "unknown"
+    else:
+        return "not_found"
+    
+
+def delete_job(name):
+    subprocess.run(["kubectl", "--namespace=" + settings["namespace"], "delete", "job", name])
+
+
+def create_job(name):
+    subprocess.run(["kubectl", "--namespace=" + settings["namespace"], "create", "-f", f"build/{name}.yaml"])
 
 
 def create_config(
@@ -38,9 +77,6 @@ def create_config(
     **_
 ):
     ## Initialization
-    with open("config/kube.yaml", "r") as f:
-        settings = yaml.safe_load(f)
-    
     if namespace is None:
         namespace = settings["namespace"]
     if user is None:
@@ -259,16 +295,15 @@ def batch(
 ):
     ## Initialization
     if project_name is None:
-        try:
-            with open("config/kube.yaml", "r") as f:
-                settings = yaml.safe_load(f)
-            project_name = settings["project_name"]
-        except FileNotFoundError:
-            raise FileNotFoundError("Please specify project_name in config/kube.yaml.")  
+        project_name = settings["project_name"]
         
     for dataset in run_configs["dataset"]:
         for model in run_configs["model"]:
-            hparam = {**dataset_configs[dataset]["hparam"], **model_configs[model]["hparam"]}
+            hparam = {}
+            if "hparam" in dataset_configs[dataset]:
+                hparam.update(dataset_configs[dataset]["hparam"])
+            if "hparam" in model_configs[model]:
+                hparam.update(model_configs[model]["hparam"])
             
             for config, hparam_dict in zip(*fill_val(model_configs[model], hparam)):
                 name = f"{project_name}-{model}-{dataset}"
@@ -279,7 +314,8 @@ def batch(
                     value not in run_configs["hparam"][key]:
                         break
                 else:
-                    del config["hparam"]
+                    if "hparam" in run_configs:
+                        del config["hparam"]
                     config = create_config(
                         name=name,
                         project_name=project_name,
@@ -290,7 +326,18 @@ def batch(
                     with open(f"build/{name}.yaml", "w") as f:
                         yaml.dump(config, f)
                     if not dry_run:
-                        os.system(f"kubectl create -f build/{name}.yaml")
+                        status = check_job_status(name)
+                        
+                        if status == "succeeded" or status == "running":
+                            print(f"Job '{name}' is already {status}. Doing nothing.")
+                        elif status == "failed":
+                            print(f"Job '{name}' has failed. Deleting the job.")
+                            delete_job(name)
+                            print(f"Creating job '{name}'.")
+                            create_job(name)
+                        elif status == "not_found":
+                            print(f"Job '{name}' not found. Creating the job.")
+                            create_job(name)
 
 
 if __name__ == "__main__":
