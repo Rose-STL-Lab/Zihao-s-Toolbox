@@ -25,7 +25,6 @@ def create_config(
     namespace: str = None,
     user: str = None,
     image: str = None,
-    use_s3: bool = True,
     image_pull_secrets: str = None,
     
     ## Node config
@@ -73,12 +72,13 @@ def create_config(
         if startup_script in settings:
             startup_script = settings["startup_script"]
         else:
+            conda_home = settings['conda_home']
             startup_script = (
                 f'ssh-keyscan -t ecdsa -p {registry_port} -H {registry_host} '
                 '> /root/.ssh/known_hosts; git fetch --all --prune; git reset --hard origin/master; '
                 'git submodule update --init --recursive; '
                 f'echo "conda activate {project_name}" >> ~/.bashrc; '
-                f'export PATH="/opt/conda/envs/{project_name}/bin/:$PATH"; '
+                f'export PATH="{conda_home}/envs/{project_name}/bin/:$PATH"; '
                 'export PYTHONPATH="src:$PYTHONPATH"; '
             )
     if registry_host is None or registry_port is None:
@@ -125,8 +125,6 @@ def create_config(
                 "volumeMounts": [
                     {"mountPath": "/dev/shm", "name": "dshm"},
                 ] + ([
-                    {"mountPath": "/home/jovyan/.s3cfg", "subPath": ".s3cfg", "name": "s3cfg"}
-                ] if use_s3 else []) + ([
                     {"mountPath": volumes[volume], "name": volume}
                 for volume in volumes]),
                 "env": [
@@ -189,12 +187,7 @@ def create_config(
                 "name": volume,
                 "persistentVolumeClaim": {"claimName": volume}
             }
-        for volume in volumes] + [
-            {
-                "name": "s3cfg",
-                "configMap": {"name": f"{project_name}-s3cfg"}
-            }
-        ] if use_s3 else []
+        for volume in volumes]
     }
     
     if interactive:
