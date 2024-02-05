@@ -250,9 +250,9 @@ def batch(
     run_configs: dict, 
     dataset_configs: dict, 
     model_configs: dict, 
-    env: dict, 
     project_name: str = None, 
-    dry_run: bool = False
+    dry_run: bool = False,
+    **kwargs
 ):
     ## Initialization
     if project_name is None:
@@ -278,9 +278,9 @@ def batch(
                     del config["hparam"]
                     config = create_config(
                         name=name,
-                        env=env,
                         project_name=project_name,
                         **config,
+                        **kwargs
                     )
                     yaml.Dumper.ignore_aliases = lambda *_ : True
                     with open(f"build/{name}.yaml", "w") as f:
