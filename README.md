@@ -4,7 +4,7 @@ boto3
 
 ## Usage:
 
-Add this Git repo as a submodule of your project repo.
+Add the following Git repository as a submodule to your project repository:
 
 ```bash
 git submodule add <repo-git> src/utils
@@ -12,16 +12,16 @@ git submodule add <repo-git> src/utils
 
 ### S3 Utilities
 
-Add `.env` under your project repo with the following values:
+Create a .env file in your project repository with these values:
 
 ```bash
-S3_BUCKET_NAME=<your_s3_bucket_name_without_s3://>
+S3_BUCKET_NAME=<your_s3_bucket_name>
 AWS_ACCESS_KEY_ID=<your_access_key>
 AWS_SECRET_ACCESS_KEY=<your_secret_key>
 S3_ENDPOINT_URL=https://...
 ```
 
-Then s3 files can be queried, downloaded, uploaded, or removed using wildcard, e.g.,
+You can perform wildcard searches, downloads, uploads, or deletions on S3 files:
 
 ```bash
 ❯ python src/utils/s3utils.py --interactive 'Model/*t5*wise*419*'
@@ -34,19 +34,17 @@ Model/Yelp/t5_model_12weeks_wise-sky-249-northern-dawn-288_epoch_1419/config.jso
 Choose an action [delete (local), remove (S3), download, upload, exit]:
 ```
 
-Note that * can match arbitrary levels of directories. Remember to use single-quote to avoid wildcard expansion in shell.
-
-The S3 bucket is syncing with your current directory by default. Download/Upload will preserve original file structure and create intermediate directories if needed.
+Use single quotes to prevent shell wildcard expansion. The S3 bucket will sync with your current directory by default, maintaining the original file structure and creating necessary directories.
 
 
 ### Kube Utilities
 
 #### Assumption
 
-Kube utilities assume 
+Kube utilities assume:
 
-* Your job image is stored in a gitlab-registry
-* In the image, you have installed a conda environment with name `project_name` under `<conda_home>/envs/`.
+- Your job image is in a GitLab container registry.
+- The image contains a conda environment named project_name located at <conda_home>/envs/.
 
 #### Create Single Pod / Interactive
 
@@ -54,35 +52,24 @@ First, create `config/kube.yaml` containing shared information across all your k
 
 ```yaml
 project_name: <project-name>
-namespace: <your-assigned-kube-namespace>
-user: <your-user-name>
-conda_home: <conda-home-folder-no-trailing-slash>
-registry_host: <registry-of-docker-image>
+namespace: <kube-namespace>
+user: <gitlab-user-name>
+conda_home: <conda-home-directory>
+registry_host: <docker-image-registry>
 registry_port: <registry-port>
 tolerations: 
-  - <no-schedule-toleration-just-the-key>
+  - <toleration-key>
 gpu_whitelist:
-  - <list-of-usable-gpus>
+  - <usable-gpu-list>
 hostname_blacklist:
-  - <list-of-unusable-node-hostnames>
+  - <unusable-node-hostnames-list>
 ```
 
-Make sure you specify one and only one of `gpu_whitelist` and `gpu_blacklist`. Likewise, specify one of `hostname_blacklist` and `hostname_whitelist`. 
+Define either gpu_whitelist or gpu_blacklist and either hostname_blacklist or hostname_whitelist. Ensure consistency in project_name across your GitLab repository (<project_name>.git), conda environment (envs/<project_name>), image pull secret (<project_name>-read-registry), and S3 configuration (<project_name>-s3cfg). Avoid hyphens and underscores in project_name.
 
-The project name should be the same across your:
+Your GitLab username would be used as user to label your kube workloads (label: <user>). For registry details, refer to the GitLab container registry documentation.
 
-- gitlab repository name
-- conda environment name
-- image pull secret name (`<project_name>-read-registry`)
-- s3 config name (`<project_name>-s3cfg`)
-
-As a result, avoid using hyphen or underline in your `project_name`.
-
-The user name shall be your gitlab user name and will also be used to mark your kube workloads (`label: <user>`).
-
-Registry_host is in the format of `gitlab-registry...`, without https header. For details, see https://docs.gitlab.com/ee/administration/packages/container_registry.html.
-
-Now, we can create a example pod with the following Python script:
+To create a pod, use the following Python script:
 
 ```python
 from utils.kubeutils import create_config
@@ -107,11 +94,11 @@ if __name__ == '__main__':
     os.system(f"kubectl apply -f build/{name}.yaml")
 ```
 
-This will create `build/example.yaml` and launch a pod on the node `examplenode.net`. `sleep infinity` will be automatically appended. The conda environment will be activated by default. Alternatively, you can specify `interactive=False` and launch the command as a job.
+This script creates build/example.yaml and launches a pod on examplenode.net. The pod will run indefinitely after hello-world, and the conda environment will be activated by default. Set interactive=False to launch the command as a job. Don't put sleep infinity in command.
 
 #### Launch a batch of workloads
 
-First, create `config/launch.yaml` that contain all running hyperparameter commands for experiments. 
+Create config/launch.yaml with all your experiment commands and hyperparameters:
 
 ```yaml
 project_name: <project-name>
@@ -146,7 +133,31 @@ run:
 #     hp2: [3]
 ```
 
-`hparam` can be empty for model and dataset. By default, the script will run all possible combinations of model and dataset with all possible combinations of hyperparameters. In the given example, this means running 
+Execute experiments with the script below:
+
+```python
+from utils.kubeutils import batch
+from utils.utils import load_env_file
+import yaml
+import os
+
+
+if __name__ == '__main__':
+    
+    with open("config/launch.yaml", "r") as f:
+        settings = yaml.safe_load(f)
+
+    batch(
+        run_configs=settings['run'],
+        dataset_configs=settings['dataset'],
+        model_configs=settings['model'],
+        env=load_env_file(),
+        dry_run=True
+    )
+```
+
+This script will execute all model and dataset combinations with respective hyperparameters. Specifying hparam in the run section allows skipping certain combinations, facilitating targeted experiment reruns. The examples would skip all runs where `hp2 != 3`.
+
 ```bash
 python src/modelA.py A 1 3
 python src/modelA.py A 1 4
@@ -154,5 +165,3 @@ python src/modelA.py A 2 3
 python src/modelA.py A 2 4
 ...
 ```
-
-if `hparam` in the `run` section is specified, then all runs with `hp2 != 3` will be skipped. This make it easier to rerun a small subset of experiments.
