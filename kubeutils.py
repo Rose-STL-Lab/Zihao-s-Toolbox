@@ -8,19 +8,18 @@ from typing import List
 def create_config(
     ## Pod config
     name: str,
-    gpu_count: int,
+    command: str,
+    gpu_count: int = 0,
     cpu_count: int = 0,
     memory: int = 0,
     env: dict = {},
     project_name: str = None,
     interactive: bool = False,
     startup_script: str = None,
-    data_command: str = None,
-    model_command: str = None,
-    post_command: str = None,
     registry_host: str = None,
     registry_port: int = None,
     tolerations: List[str] = None,
+    volumes: dict[str, str] = None,
     
     ## User config
     namespace: str = None,
@@ -52,7 +51,7 @@ def create_config(
         if "image" in settings:
             image = settings["image"]
         else:
-            image = f"{registry_host}/{user}/{project_name}:latest"
+            image = f"{settings['registry_host']}/{user}/{project_name}:latest"
     if image_pull_secrets is None:
         if "image_pull_secrets" in settings:
             image_pull_secrets = settings["image_pull_secrets"]
@@ -87,13 +86,10 @@ def create_config(
         registry_port = settings["registry_port"]
     if tolerations is None:
         tolerations = settings["tolerations"]
+    if volumes is None:
+        volumes = settings["volumes"]
         
     env = [{'name': k, 'value': v} for k, v in env.items()]
-    command = " && ".join(
-        ([data_command] if data_command is not None else [])
-        + ([model_command] if model_command is not None else [])
-        + ([post_command] if post_command is not None else [])
-    )
     
     metadata = {
         "namespace": namespace,
@@ -130,7 +126,9 @@ def create_config(
                     {"mountPath": "/dev/shm", "name": "dshm"},
                 ] + ([
                     {"mountPath": "/home/jovyan/.s3cfg", "subPath": ".s3cfg", "name": "s3cfg"}
-                ] if use_s3 else []),
+                ] if use_s3 else []) + ([
+                    {"mountPath": volumes[volume], "name": volume}
+                for volume in volumes]),
                 "env": [
                     {"name": "PYTHONUNBUFFERED", "value": "1"},
                     {"name": "PYTHONIOENCODING", "value": "UTF-8"},
@@ -175,7 +173,7 @@ def create_config(
         },
         "tolerations": [
             {
-                "key": f"nautilus.io/{key}", 
+                "key": key, 
                 "operator": "Equal", 
                 "value": "true", 
                 "effect": "NoSchedule"
@@ -188,6 +186,11 @@ def create_config(
             }
         ] + [
             {
+                "name": volume,
+                "persistentVolumeClaim": {"claimName": volume}
+            }
+        for volume in volumes] + [
+            {
                 "name": "s3cfg",
                 "configMap": {"name": f"{project_name}-s3cfg"}
             }
@@ -198,9 +201,9 @@ def create_config(
         container = template["containers"][0]
         container["command"][-1] += " && sleep infinity"
         for entry in ["limits", "requests"]:
-            container["resources"][entry]["nvidia.com/gpu"] = 1
+            container["resources"][entry]["nvidia.com/gpu"] = "1"
             container["resources"][entry]["memory"] = "16G"
-            container["resources"][entry]["cpu"] = 8
+            container["resources"][entry]["cpu"] = "8"
         config = {
             "apiVersion": "v1",
             "kind": "Pod",
@@ -255,7 +258,6 @@ def batch(
     dataset_configs: dict, 
     model_configs: dict, 
     env: dict, 
-    post_command: str,
     project_name: str = None, 
     dry_run: bool = False
 ):
@@ -285,8 +287,6 @@ def batch(
                         name=name,
                         env=env,
                         project_name=project_name,
-                        data_command=dataset_configs[dataset]["data_command"],
-                        post_command=post_command,
                         **config,
                     )
                     yaml.Dumper.ignore_aliases = lambda *_ : True
