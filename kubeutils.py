@@ -77,6 +77,7 @@ def create_config(
             startup_script = (
                 f'ssh-keyscan -t ecdsa -p {registry_port} -H {registry_host} '
                 '> /root/.ssh/known_hosts; git fetch --all --prune; git reset --hard origin/master; '
+                'git submodule update --init --recursive; '
                 f'echo "conda activate {project_name}" >> ~/.bashrc; '
                 f'export PATH="/opt/conda/envs/{project_name}/bin/:$PATH"; '
                 'export PYTHONPATH="src:$PYTHONPATH"; '

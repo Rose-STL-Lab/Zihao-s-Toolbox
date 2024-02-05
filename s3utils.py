@@ -78,7 +78,7 @@ def get_s3_objects(s3_path):
     return filtered_s3_objects
 
 
-def download_s3_objects(s3_objects, local_path):
+def download_s3_objects(s3_objects, local_path='./'):
     """
     Download specified S3 objects to the local file system.
     """
@@ -93,13 +93,16 @@ def download_s3_objects(s3_objects, local_path):
 
         # Download the file from S3
         try:
+            if os.path.exists(local_file_path):
+                print(f"File {local_file_path} already exists")
+                continue
             s3_client.download_file(S3_BUCKET_NAME, s3_key, local_file_path)
             print(f"Downloaded {s3_key} to {local_file_path}")
         except ClientError as e:
             print(f"Failed to download {s3_key}: {e}")
             
             
-def download_s3_path(s3_path, local_path):
+def download_s3_path(s3_path, local_path='./'):
     """
     Download all files in the S3 path to the local file system.
     """
@@ -174,7 +177,7 @@ def remove_s3_path(s3_path):
     remove_s3_objects(s3_objects)
 
 
-def upload_s3_objects(local_files, local_path):
+def upload_s3_objects(local_files, local_path='./'):
     """
     Upload local files to S3.
     """
@@ -190,7 +193,7 @@ def upload_s3_objects(local_files, local_path):
                 print(f"Uploaded {local_file} to {s3_key}")
                 
                 
-def upload_s3_path(s3_path, local_path):
+def upload_s3_path(s3_path, local_path='./'):
     """
     Upload all files in the local path to the S3 path.
     """
