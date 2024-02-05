@@ -17,7 +17,8 @@ def create_config(
     interactive: bool = False,
     startup_script: str = None,
     registry_host: str = None,
-    registry_port: int = None,
+    ssh_host: str = None,
+    ssh_port: int = None,
     tolerations: List[str] = None,
     volumes: dict[str, str] = None,
     
@@ -68,22 +69,24 @@ def create_config(
             hostname_whitelist = settings["hostname_whitelist"]
     assert (gpu_blacklist is None) ^ (gpu_whitelist is None), "Specify one of GPU black and white lists."
     assert (hostname_blacklist is None) ^ (hostname_whitelist is None), "Specify one of Host black and white lists."
+    if registry_host is None:
+        registry_host = settings["registry_host"]
+    if ssh_host is None or ssh_port is None:
+        ssh_port = settings["ssh_port"]
+        ssh_host = settings["ssh_host"]
     if startup_script is None:
         if startup_script in settings:
             startup_script = settings["startup_script"]
         else:
             conda_home = settings['conda_home']
             startup_script = (
-                f'ssh-keyscan -t ecdsa -p {registry_port} -H {registry_host} '
+                f'ssh-keyscan -t ecdsa -p {ssh_port} -H {ssh_host} '
                 '> /root/.ssh/known_hosts; git fetch --all --prune; git reset --hard origin/master; '
                 'git submodule update --init --recursive; '
                 f'echo "conda activate {project_name}" >> ~/.bashrc; '
                 f'export PATH="{conda_home}/envs/{project_name}/bin/:$PATH"; '
                 'export PYTHONPATH="src:$PYTHONPATH"; '
             )
-    if registry_host is None or registry_port is None:
-        registry_host = settings["registry_host"]
-        registry_port = settings["registry_port"]
     if tolerations is None:
         tolerations = settings["tolerations"]
     if volumes is None:
@@ -192,7 +195,7 @@ def create_config(
     
     if interactive:
         container = template["containers"][0]
-        container["command"][-1] += " && sleep infinity"
+        container["command"] = ["sleep", "infinity"]
         for entry in ["limits", "requests"]:
             container["resources"][entry]["nvidia.com/gpu"] = "1"
             container["resources"][entry]["memory"] = "16G"

@@ -58,7 +58,8 @@ conda_home: <conda-home-directory>
 volumes:
   <pvc-name>: <mount-path>
 registry_host: <docker-image-registry>
-registry_port: <registry-port>
+ssh_host: <gitlab-ssh-host>
+ssh_port: <gitlab-ssh-port>
 tolerations: 
   - <toleration-key>
 gpu_whitelist:
