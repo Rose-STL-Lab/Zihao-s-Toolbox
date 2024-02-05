@@ -272,7 +272,8 @@ def batch(
                 for key, value in hparam_dict.items():
                     if key != "alias":
                         name += f"-{key}-{value}"
-                    if "hparam" in run_configs and key in run_configs["hparam"] and value not in run_configs["hparam"]:
+                    if "hparam" in run_configs and key in run_configs["hparam"] and \
+                    value not in run_configs["hparam"][key]:
                         break
                 else:
                     del config["hparam"]

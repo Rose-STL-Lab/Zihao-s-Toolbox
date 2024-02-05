@@ -55,6 +55,8 @@ project_name: <project-name>
 namespace: <kube-namespace>
 user: <gitlab-user-name>
 conda_home: <conda-home-directory>
+volumes:
+  <pvc-name>: <mount-path>
 registry_host: <docker-image-registry>
 registry_port: <registry-port>
 tolerations: 
