@@ -191,7 +191,14 @@ Before you begin, make sure you have:
 3. Copy the public key `<project_name>.pub` to Gitlab Repo - Settings - **Deploy Keys**. Grant write permission.
 4. **(Optional)** Create a Github repo of the same name. Under Settings, add the same public key.
 5. Deploy tokens are used to securely download (pull) Docker images from your GitLab registry without requiring sign-in. Under Gitlab Repo - Settings - Repository - **Deploy Tokens**, create new deploy token with name `<project_name>-write-registry`. Grant both `write_registry` and `read_registry` access. Take a note of the `username` and `password` for this token for Gitlab CI. Create new deploy token with name `<project_name>-read-registry`. Grant `read_registry` access. Take a note of the `username` and `password` for this token for Kubernetes experiments.
-6. In Gitlab Repo - Settings - CI/CD - **Variables**, enter the following variables:
+6. Run the follow command to upload the read tokens to the cluster. 
+```bash
+kubectl create secret docker-registry <project_name>-read-registry \
+    --docker-server=gitlab-registry.nrp-nautilus.io \
+    --docker-username=<username> \
+    --docker-password=<password>
+```
+7. In Gitlab Repo - Settings - CI/CD - **Variables**, enter the following variables:
   - SSH_CONFIG: `fDF8akw1ajl5VnFpaEl1OWE5M0RBekluU0hUb3BnPXxsZXNDdmZDTVpNTGpqVTZURjhrQnJTMUE4ZFU9IHNzaC1lZDI1NTE5IEFBQUFDM056YUMxbFpESTFOVEU1QUFBQUlQeGVJaFdpb0F1akhGaEVHc0xDQzRZNStBTEVaRWU4QUd1SnFlM2FhVlR4Cgp8MXxqTzVkQWViQ3Y4LzJBTEE4WlBDYjJzTmJrOVE9fG1NTUpjbkZYRWdrRlBsOFpNZksvTEdISFFobz0gc3NoLWVkMjU1MTkgQUFBQUMzTnphQzFsWkRJMU5URTVBQUFBSVB4ZUloV2lvQXVqSEZoRUdzTENDNFk1K0FMRVpFZThBR3VKcWUzYWFWVHg=`, which is the base64 encoding of
   ```
   Host gitlab-ssh.nrp-nautilus.io
