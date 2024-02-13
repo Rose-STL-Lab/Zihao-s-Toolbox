@@ -159,7 +159,7 @@ if __name__ == '__main__':
         dataset_configs=settings['dataset'],
         model_configs=settings['model'],
         env=load_env_file(),
-        dry_run=True
+        mode="dryrun"
     )
 ```
 

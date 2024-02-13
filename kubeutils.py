@@ -292,12 +292,20 @@ def batch(
     dataset_configs: dict, 
     model_configs: dict, 
     project_name: str = None, 
-    dry_run: bool = False,
+    mode: str = "kube",
     **kwargs
-):
+):  
+    """
+    mode: str
+        mode=kube: Create jobs in the Kubernetes cluster
+        mode=local: Runs jobs locally
+        mode=dryrun: Only creates the job files without running them
+    """
     ## Initialization
     if project_name is None:
         project_name = settings["project_name"]
+    
+    assert mode in ["kube", "local", "dryrun"]
         
     for dataset in run_configs["dataset"]:
         for model in run_configs["model"]:
