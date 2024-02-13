@@ -258,6 +258,8 @@ def create_config(
 
 def fill_val_helper(config, key, value):
     # Helper function to replace a single value
+    if key.startswith("_"):
+        key = key[1:]
     if isinstance(config, dict):
         for k, v in config.items():
             if isinstance(v, (dict, list)):
@@ -304,11 +306,14 @@ def batch(
                 hparam.update(dataset_configs[dataset]["hparam"])
             if "hparam" in model_configs[model]:
                 hparam.update(model_configs[model]["hparam"])
+            for key, value in hparam.items():
+                if type(value) is not list:
+                    hparam[key] = [value]
             
             for config, hparam_dict in zip(*fill_val(model_configs[model], hparam)):
                 name = f"{project_name}-{model}-{dataset}"
                 for key, value in hparam_dict.items():
-                    if key != "alias":
+                    if not key.startswith("_"):
                         name += f"-{key}-{value}"
                     if "hparam" in run_configs and key in run_configs["hparam"] and \
                     value not in run_configs["hparam"][key]:
@@ -323,6 +328,8 @@ def batch(
                         **kwargs
                     )
                     yaml.Dumper.ignore_aliases = lambda *_ : True
+                    if not os.path.exists("build"):
+                        os.makedirs("build")
                     with open(f"build/{name}.yaml", "w") as f:
                         yaml.dump(config, f)
                     if not dry_run:

@@ -77,6 +77,7 @@ Your GitLab username would be used as user to label your kube workloads (label: 
 To create a pod, use the following Python script:
 
 ```python
+import yaml
 from toolbox.kubeutils import create_config
 from toolbox.utils import load_env_file
 
@@ -121,15 +122,16 @@ model:
 dataset:
   dataA:
     hparam:
-      name: A
+      # Hparam prepended with _ will not in experiment name
+      _name: A
       hp2: [3, 4]
   dataB:
     hparam:
-      name: B
+      _name: B
       hp2: [3, 4]
   dataC:
     hparam:
-      name: C
+      _name: C
       hp2: [3, 4]
 run:
   dataset: [dataA, dataB, dataC]
