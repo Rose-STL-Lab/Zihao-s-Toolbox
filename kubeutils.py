@@ -276,6 +276,9 @@ def fill_val_helper(config, key, value):
 
 def fill_val(original_config, vals):
     # Main function to replace all values and return a list of configs
+    for key, value in vals.items():
+        if type(value) is not list:
+            vals[key] = [value]
     val_combination = list(itertools.product(*vals.values()))
     configs = []
     for combination in val_combination:
@@ -314,9 +317,6 @@ def batch(
                 hparam.update(dataset_configs[dataset]["hparam"])
             if "hparam" in model_configs[model]:
                 hparam.update(model_configs[model]["hparam"])
-            for key, value in hparam.items():
-                if type(value) is not list:
-                    hparam[key] = [value]
             
             for config, hparam_dict in zip(*fill_val(model_configs[model], hparam)):
                 name = f"{project_name}-{model}-{dataset}"
@@ -335,12 +335,18 @@ def batch(
                         **config,
                         **kwargs
                     )
+                    if mode == "local":
+                        command = fill_val({'_': model_configs[model]['command']}, hparam_dict)[0][0]['_']
+                        command = 'export $(cat .env | xargs) && ' + command
+                        print(f"Running {hparam_dict}...")
+                        subprocess.run(command, shell=True, text=True, check=True)
+                        continue
                     yaml.Dumper.ignore_aliases = lambda *_ : True
                     if not os.path.exists("build"):
                         os.makedirs("build")
                     with open(f"build/{name}.yaml", "w") as f:
                         yaml.dump(config, f)
-                    if not dry_run:
+                    if mode == "kube":
                         status = check_job_status(name)
                         
                         if status == "succeeded" or status == "running":
