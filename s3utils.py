@@ -3,6 +3,8 @@ import glob
 import boto3
 import fnmatch
 from botocore.exceptions import ClientError
+from botocore import UNSIGNED
+from botocore.client import Config
 
 
 S3_ENDPOINT_URL = os.getenv('S3_ENDPOINT_URL')
@@ -10,7 +12,13 @@ S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
 if not S3_ENDPOINT_URL or not S3_BUCKET_NAME:
     raise EnvironmentError("Please set the S3_ENDPOINT_URL and S3_BUCKET_NAME environment variables.")
 
-s3_client = boto3.client("s3", endpoint_url=S3_ENDPOINT_URL)
+# Check if credentials are provided
+if os.getenv('AWS_ACCESS_KEY_ID') and os.getenv('AWS_SECRET_ACCESS_KEY'):
+    # Credentials are provided, use them to create the client
+    s3_client = boto3.client('s3', endpoint_url=S3_ENDPOINT_URL)
+else:
+    # Credentials are not provided, use anonymous access
+    s3_client = boto3.client('s3', endpoint_url=S3_ENDPOINT_URL, config=Config(signature_version=UNSIGNED))
 
 
 def get_local_files(s3_path, local_path):
