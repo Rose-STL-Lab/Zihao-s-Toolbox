@@ -201,7 +201,7 @@ kubectl create secret docker-registry <project_name>-read-registry \
     --docker-password=<password>
 ```
 7. In Gitlab Repo - Settings - CI/CD - **Variables**, enter the following variables:
-  - SSH_CONFIG: `fDF8akw1ajl5VnFpaEl1OWE5M0RBekluU0hUb3BnPXxsZXNDdmZDTVpNTGpqVTZURjhrQnJTMUE4ZFU9IHNzaC1lZDI1NTE5IEFBQUFDM056YUMxbFpESTFOVEU1QUFBQUlQeGVJaFdpb0F1akhGaEVHc0xDQzRZNStBTEVaRWU4QUd1SnFlM2FhVlR4Cgp8MXxqTzVkQWViQ3Y4LzJBTEE4WlBDYjJzTmJrOVE9fG1NTUpjbkZYRWdrRlBsOFpNZksvTEdISFFobz0gc3NoLWVkMjU1MTkgQUFBQUMzTnphQzFsWkRJMU5URTVBQUFBSVB4ZUloV2lvQXVqSEZoRUdzTENDNFk1K0FMRVpFZThBR3VKcWUzYWFWVHg=`, which is the base64 encoding of
+  - SSH_CONFIG: `SG9zdCBnaXRsYWItc3NoLm5ycC1uYXV0aWx1cy5pbwogICAgSG9zdE5hbWUgZ2l0bGFiLXNzaC5ucnAtbmF1dGlsdXMuaW8KICAgIFVzZXIgZ2l0CiAgICBQb3J0IDMwNjIyCiAgICBJZGVudGl0eUZpbGUgL3Jvb3QvLnNzaC9pZF9yc2EK`, which is the base64 encoding of
   ```
   Host gitlab-ssh.nrp-nautilus.io
     HostName gitlab-ssh.nrp-nautilus.io
