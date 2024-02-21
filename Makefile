@@ -74,14 +74,24 @@ test:
 # Kubernetes related                                                            #
 #################################################################################
 
-local:
-	python launch.py --mode local
+# Define a function to call python script with the supplied command
+define launch_command
+	@source $$CONDA_PREFIX/etc/profile.d/conda.sh && \
+	conda activate $(PROJECT_NAME) && \
+	python launch.py --mode $(1)
+endef
 
-batch:
-	python launch.py --mode batch
+local: 
+	$(call launch_command,local)
+
+job:
+	$(call launch_command,job)
+
+pod:
+	$(call launch_command,pod)
 
 dryrun:
-	python launch.py --mode dryrun
+	$(call launch_command,dryrun)
 
 delete:
 	kubectl delete jobs -l user=$(USER_NAME)
@@ -93,7 +103,9 @@ delete:
 
 # Define a function to call python script with the supplied command
 define s3_command
-	@python src/toolbox/s3utils.py --$(1) $(file)
+	@source $$CONDA_PREFIX/etc/profile.d/conda.sh && \
+	conda activate $(PROJECT_NAME) && \
+	python src/toolbox/s3utils.py --$(1) $(file)
 endef
 
 # Define a function to request file input if it's not set

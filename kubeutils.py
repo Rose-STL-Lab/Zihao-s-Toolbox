@@ -300,7 +300,7 @@ def batch(
 ):  
     """
     mode: str
-        mode=kube: Create jobs in the Kubernetes cluster
+        mode=job: Create jobs in the Kubernetes cluster
         mode=local: Runs jobs locally
         mode=dryrun: Only creates the job files without running them
     """
@@ -308,7 +308,7 @@ def batch(
     if project_name is None:
         project_name = settings["project_name"]
     
-    assert mode in ["kube", "local", "dryrun"]
+    assert mode in ["job", "local", "dryrun"]
         
     for dataset in run_configs["dataset"]:
         for model in run_configs["model"]:
@@ -327,7 +327,7 @@ def batch(
                     value not in run_configs["hparam"][key]:
                         break
                 else:
-                    if "hparam" in run_configs:
+                    if "hparam" in run_configs and "hparam" in config:
                         del config["hparam"]
                     config = create_config(
                         name=name,
@@ -338,8 +338,8 @@ def batch(
                     if mode == "local":
                         command = fill_val({'_': model_configs[model]['command']}, hparam_dict)[0][0]['_']
                         command = 'export $(cat .env | xargs) && ' + command
-                        print(f"Running {hparam_dict}...")
-                        subprocess.run(command, shell=True, text=True, check=True)
+                        print(f"Running {hparam_dict} ... ")
+                        os.system(command)
                         continue
                     yaml.Dumper.ignore_aliases = lambda *_ : True
                     if not os.path.exists("build"):
