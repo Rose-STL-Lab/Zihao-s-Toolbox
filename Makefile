@@ -76,7 +76,7 @@ test:
 
 # Define a function to call python script with the supplied command
 define launch_command
-	@source $$CONDA_PREFIX_1/etc/profile.d/conda.sh && \
+	@source $$CONDA_ROOT/etc/profile.d/conda.sh && \
 	conda activate $(PROJECT_NAME) && \
 	python launch.py --mode $(1)
 endef
@@ -103,7 +103,7 @@ delete:
 
 # Define a function to call python script with the supplied command
 define s3_command
-	@source $$CONDA_PREFIX/etc/profile.d/conda.sh && \
+	@source $$CONDA_ROOT/etc/profile.d/conda.sh && \
 	conda activate $(PROJECT_NAME) && \
 	python src/toolbox/s3utils.py --$(1) $(file)
 endef

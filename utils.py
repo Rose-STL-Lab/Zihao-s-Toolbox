@@ -1,3 +1,6 @@
+import resource
+
+
 def load_env_file(file_path='.env'):
     env_dict = {}
     with open(file_path, 'r') as file:
@@ -39,3 +42,8 @@ def load_class(info: dict):
     instance = cls(**init_args)
     
     return instance
+
+
+def increase_u_limit():
+    rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
+    resource.setrlimit(resource.RLIMIT_NOFILE, (65536, rlimit[1]))
