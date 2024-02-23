@@ -103,8 +103,6 @@ def create_config(
             hostname_blacklist = settings["hostname_blacklist"]
         if "hostname_whitelist" in settings:
             hostname_whitelist = settings["hostname_whitelist"]
-    assert (gpu_blacklist is None) ^ (gpu_whitelist is None), "Specify one of GPU black and white lists."
-    assert (hostname_blacklist is None) ^ (hostname_whitelist is None), "Specify one of Host black and white lists."
     if registry_host is None:
         registry_host = settings["registry_host"]
     if ssh_host is None or ssh_port is None:
