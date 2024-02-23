@@ -338,7 +338,7 @@ def batch(
                     if mode == "local":
                         command = fill_val({'_': model_configs[model]['command']}, hparam_dict)[0][0]['_']
                         command = 'export $(cat .env | xargs) && ' + command
-                        print(f"Running {hparam_dict} ... ")
+                        print(f"Running {hparam_dict} ... > {command}")
                         os.system(command)
                         continue
                     yaml.Dumper.ignore_aliases = lambda *_ : True
