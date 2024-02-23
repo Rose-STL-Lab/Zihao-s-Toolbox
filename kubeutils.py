@@ -120,11 +120,14 @@ def create_config(
                 f'echo "conda activate {project_name}" >> ~/.bashrc; '
                 f'export PATH="{conda_home}/envs/{project_name}/bin/:$PATH"; '
             )
-    if tolerations is None:
+    if tolerations is None and "tolerations" in settings:
         tolerations = settings["tolerations"]
-    if volumes is None:
+    else:
+        tolerations = []
+    if volumes is None and "volumes" in settings:
         volumes = settings["volumes"]
-    
+    else:
+        volumes = {}
     if "PYTHONPATH" not in env:
         env["PYTHONPATH"] = "src"
     elif "src" not in env["PYTHONPATH"].split(":"):
@@ -188,7 +191,7 @@ def create_config(
                 "requiredDuringSchedulingIgnoredDuringExecution": {
                     "nodeSelectorTerms": [
                         {
-                            "matchExpressions": [
+                            "matchExpressions": [expression for expression in [
                                 {
                                     "key": "kubernetes.io/hostname",
                                     "operator": "NotIn",
@@ -197,7 +200,7 @@ def create_config(
                                     "key": "kubernetes.io/hostname",
                                     "operator": "In",
                                     "values": hostname_whitelist
-                                }, {
+                                } if hostname_whitelist else {}, {
                                     "key": "nvidia.com/gpu.product",
                                     "operator": "In",
                                     "values": gpu_whitelist
@@ -205,8 +208,8 @@ def create_config(
                                     "key": "nvidia.com/gpu.product",
                                     "operator": "NotIn",
                                     "values": gpu_blacklist
-                                }
-                            ]
+                                } if gpu_blacklist else {}
+                            ] if expression != {}]
                         }
                     ]
                 },

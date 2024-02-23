@@ -28,8 +28,16 @@ if __name__ == '__main__':
             yaml.dump(config, f)
         os.system(f"kubectl apply -f build/{name}.yaml")
     else:
+        if 'run' in settings:
+            run_configs = settings['run']
+        else:
+            run_configs = {
+                "model": list(settings['model'].keys()),
+                "dataset": list(settings['dataset'].keys()),
+            }
+        
         batch(
-            run_configs=settings['run'],
+            run_configs=run_configs,
             dataset_configs=settings['dataset'],
             model_configs=settings['model'],
             env=load_env_file(),
