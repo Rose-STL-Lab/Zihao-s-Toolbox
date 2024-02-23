@@ -300,7 +300,7 @@ def batch(
     dataset_configs: dict, 
     model_configs: dict, 
     project_name: str = None, 
-    mode: str = "kube",
+    mode: str = "job",
     **kwargs
 ):  
     """
@@ -353,7 +353,7 @@ def batch(
                         os.makedirs("build")
                     with open(f"build/{name}.yaml", "w") as f:
                         yaml.dump(config, f)
-                    if mode == "kube":
+                    if mode == "job":
                         status = check_job_status(name)
                         
                         if status == "succeeded" or status == "running":
