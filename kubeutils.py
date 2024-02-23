@@ -341,6 +341,8 @@ def batch(
                         **kwargs
                     )
                     if mode == "local":
+                        if "local_command" in model_configs[model]:
+                            model_configs[model]['command'] = model_configs[model]['local_command']
                         command = fill_val({'_': model_configs[model]['command']}, hparam_dict)[0][0]['_']
                         command = 'export $(cat .env | xargs) && ' + command
                         print(f"Running {hparam_dict} ... > {command}")
