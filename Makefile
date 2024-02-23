@@ -5,7 +5,7 @@ endif
 
 # Check for config/kube.yaml file
 ifeq ("$(wildcard config/kube.yaml)","")
-$(error "config/kube.yaml does not exist. Please create the file with 'user' and 'project_name' entries.")
+$(error "config/kube.yaml does not exist. Please create the file with 'user', 'namespace' and 'project_name' entries.")
 endif
 
 # Check for kubectl command existence
@@ -37,6 +37,10 @@ export PROJECT_NAME
 USER_NAME_TMP := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['user'])")
 USER_NAME := $(USER_NAME_TMP)
 export USER_NAME
+
+NAMESPACE_TMP := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['namespace'])")
+NAMESPACE := $(NAMESPACE_TMP)
+export NAMESPACE
 
 PYTHON_INTERPRETER = python3
 RESULT_DIR = results/
@@ -95,8 +99,8 @@ dryrun:
 	$(call launch_command,dryrun)
 
 delete:
-	kubectl delete jobs -l user=$(USER_NAME)
-	kubectl delete pods -l user=$(USER_NAME)
+	kubectl -n $(NAMESPACE) delete jobs -l user=$(USER_NAME)
+	kubectl -n $(NAMESPACE) delete pods -l user=$(USER_NAME)
 
 #################################################################################
 # S3 related                                                                    #

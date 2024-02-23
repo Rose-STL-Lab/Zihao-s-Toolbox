@@ -121,12 +121,18 @@ def create_config(
                 'git submodule update --init --recursive; '
                 f'echo "conda activate {project_name}" >> ~/.bashrc; '
                 f'export PATH="{conda_home}/envs/{project_name}/bin/:$PATH"; '
-                'export PYTHONPATH="src:$PYTHONPATH"; '
             )
     if tolerations is None:
         tolerations = settings["tolerations"]
     if volumes is None:
         volumes = settings["volumes"]
+    
+    if "PYTHONPATH" not in env:
+        env["PYTHONPATH"] = "src"
+    elif "src" not in env["PYTHONPATH"].split(":"):
+        env["PYTHONPATH"] += ":src"
+    if "WANDB_MODE" in env:
+        env["WANDB_MODE"] = "online"  # Always use online mode in the cluster
         
     env = [{'name': k, 'value': v} for k, v in env.items()]
     
@@ -147,7 +153,7 @@ def create_config(
                     project_name, 
                     "/bin/bash", 
                     "-c", 
-                    startup_script + command
+                    ((startup_script + "sleep infinity") if interactive else (startup_script + command))
                 ],
                 "resources": {
                     "limits": {
@@ -231,7 +237,6 @@ def create_config(
     
     if interactive:
         container = template["containers"][0]
-        container["command"] = ["sleep", "infinity"]
         for entry in ["limits", "requests"]:
             container["resources"][entry]["nvidia.com/gpu"] = "1"
             container["resources"][entry]["memory"] = "16G"
