@@ -46,6 +46,8 @@ endif
 kube:
 ifndef PROJECT_NAME
     $(error "config/kube.yaml is not found. kube-related commands will not work.")
+else
+	@mkdir -p build/
 endif
 
 #################################################################################
