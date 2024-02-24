@@ -13,7 +13,10 @@ endif
 -include project.mk
 
 -include .env
-export $(shell sed 's/=.*//' .env)
+
+if [ -f .env ]; then
+	export $(shell sed 's/=.*//' .env)
+endif
 
 SHELL = /bin/bash
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
@@ -31,6 +34,8 @@ ifneq ("$(wildcard config/kube.yaml)","")
 	NAMESPACE_TMP := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['namespace'])")
 	NAMESPACE := $(NAMESPACE_TMP)
 	export NAMESPACE
+else
+	echo "config/kube.yaml" is not found. kube-related commands will not work."
 endif
 
 PYTHON_INTERPRETER = python3
