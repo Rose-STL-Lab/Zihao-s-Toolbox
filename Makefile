@@ -19,7 +19,7 @@ SHELL = /bin/bash
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 PROFILE = default
 
-ifeq ("$(wildcard config/kube.yaml)","")
+ifneq ("$(wildcard config/kube.yaml)","")
 	PROJECT_NAME_TMP := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['project_name'])")
 	PROJECT_NAME := $(PROJECT_NAME_TMP)
 	export PROJECT_NAME
