@@ -3,8 +3,9 @@ ifneq ("$(wildcard ./__init__.py)","")
 $(error "__init__.py is present in the current directory. Please install this as a submodule under src/toolbox and then run 'ln -s src/toolbox/Makefile Makefile'")
 endif
 
-.PHONY: clean data lint requirements yaml test help
+.PHONY: clean data lint requirements yaml test help kube
 .PHONY: prompt_for_file interactive find fd list ls download down upload up remove rm
+.PHONY: local job pod dryrun delete
 
 #################################################################################
 # GLOBALS                                                                       #
@@ -22,22 +23,6 @@ SHELL = /bin/bash
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 PROFILE = default
 
-ifneq ("$(wildcard config/kube.yaml)","")
-	PROJECT_NAME_TMP := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['project_name'])")
-	PROJECT_NAME := $(PROJECT_NAME_TMP)
-	export PROJECT_NAME
-
-	USER_NAME_TMP := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['user'])")
-	USER_NAME := $(USER_NAME_TMP)
-	export USER_NAME
-
-	NAMESPACE_TMP := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['namespace'])")
-	NAMESPACE := $(NAMESPACE_TMP)
-	export NAMESPACE
-else
-	echo "config/kube.yaml" is not found. kube-related commands will not work."
-endif
-
 PYTHON_INTERPRETER = python3
 RESULT_DIR = results/
 
@@ -47,6 +32,20 @@ ifeq (,$(shell which conda))
 HAS_CONDA=False
 else
 HAS_CONDA=True
+endif
+
+kube:
+ifneq ("$(wildcard config/kube.yaml)","")
+	@PROJECT_NAME=$(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['project_name'])")
+	@export PROJECT_NAME
+
+	@USER_NAME=$(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['user'])")
+	@export USER_NAME
+
+	@NAMESPACE=$(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['namespace'])")
+	@export NAMESPACE
+else
+	$(error "config/kube.yaml is not found. kube-related commands will not work.")
 endif
 
 #################################################################################
@@ -84,19 +83,19 @@ define launch_command
 	python launch.py --mode $(1)
 endef
 
-local: 
+local: kube
 	$(call launch_command,local)
 
-job:
+job: kube
 	$(call launch_command,job)
 
-pod:
+pod: kube
 	$(call launch_command,pod)
 
-dryrun:
+dryrun: kube
 	$(call launch_command,dryrun)
 
-delete:
+delete: kube
 	kubectl -n $(NAMESPACE) delete jobs -l user=$(USER_NAME)
 	kubectl -n $(NAMESPACE) delete pods -l user=$(USER_NAME)
 
@@ -157,7 +156,7 @@ rm: remove
 #################################################################################
 
 ## Set up python interpreter environment
-create_environment:
+create_environment: kube
 	conda-lock install --name ${PROJECT_NAME}
 	conda run -n ${PROJECT_NAME} poetry install --no-root
 
