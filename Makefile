@@ -3,17 +3,6 @@ ifneq ("$(wildcard ./__init__.py)","")
 $(error "__init__.py is present in the current directory. Please install this as a submodule under src/toolbox and then run 'ln -s src/toolbox/Makefile Makefile'")
 endif
 
-# Check for config/kube.yaml file
-ifeq ("$(wildcard config/kube.yaml)","")
-$(error "config/kube.yaml does not exist. Please create the file with 'user', 'namespace' and 'project_name' entries.")
-endif
-
-# Check for kubectl command existence
-KUBECTL := $(shell command -v kubectl 2> /dev/null)
-ifndef KUBECTL
-    $(error "kubectl is not installed. Please install kubectl before running this Makefile.")
-endif
-
 .PHONY: clean data lint requirements yaml test help
 .PHONY: prompt_for_file interactive find fd list ls download down upload up remove rm
 
@@ -30,17 +19,19 @@ SHELL = /bin/bash
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 PROFILE = default
 
-PROJECT_NAME_TMP := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['project_name'])")
-PROJECT_NAME := $(PROJECT_NAME_TMP)
-export PROJECT_NAME
+ifeq ("$(wildcard config/kube.yaml)","")
+	PROJECT_NAME_TMP := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['project_name'])")
+	PROJECT_NAME := $(PROJECT_NAME_TMP)
+	export PROJECT_NAME
 
-USER_NAME_TMP := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['user'])")
-USER_NAME := $(USER_NAME_TMP)
-export USER_NAME
+	USER_NAME_TMP := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['user'])")
+	USER_NAME := $(USER_NAME_TMP)
+	export USER_NAME
 
-NAMESPACE_TMP := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['namespace'])")
-NAMESPACE := $(NAMESPACE_TMP)
-export NAMESPACE
+	NAMESPACE_TMP := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['namespace'])")
+	NAMESPACE := $(NAMESPACE_TMP)
+	export NAMESPACE
+endif
 
 PYTHON_INTERPRETER = python3
 RESULT_DIR = results/
@@ -80,9 +71,11 @@ test:
 
 # Define a function to call python script with the supplied command
 define launch_command
-	@CONDA_ENV_ROOT=$$(if echo $$CONDA_PREFIX | grep -q '/envs/'; then echo $$CONDA_PREFIX | sed 's|/envs/.*|/|'; else echo $$CONDA_PREFIX; fi); \
-	source $$CONDA_ENV_ROOT/etc/profile.d/conda.sh && \
-	conda activate $(PROJECT_NAME) && \
+	@if [ -n "$(PROJECT_NAME)" ]; then \
+		CONDA_ENV_ROOT=$$(if echo $$CONDA_PREFIX | grep -q '/envs/'; then echo $$CONDA_PREFIX | sed 's|/envs/.*|/|'; else echo $$CONDA_PREFIX; fi); \
+		source $$CONDA_ENV_ROOT/etc/profile.d/conda.sh && \
+		conda activate $(PROJECT_NAME); \
+	fi; \
 	python launch.py --mode $(1)
 endef
 
@@ -108,9 +101,11 @@ delete:
 
 # Define a function to call python script with the supplied command
 define s3_command
-	@CONDA_ENV_ROOT=$$(if echo $$CONDA_PREFIX | grep -q '/envs/'; then echo $$CONDA_PREFIX | sed 's|/envs/.*|/|'; else echo $$CONDA_PREFIX; fi); \
-	source $$CONDA_ENV_ROOT/etc/profile.d/conda.sh && \
-	conda activate $(PROJECT_NAME) && \
+	@if [ -n "$(PROJECT_NAME)" ]; then \
+		CONDA_ENV_ROOT=$$(if echo $$CONDA_PREFIX | grep -q '/envs/'; then echo $$CONDA_PREFIX | sed 's|/envs/.*|/|'; else echo $$CONDA_PREFIX; fi); \
+		source $$CONDA_ENV_ROOT/etc/profile.d/conda.sh && \
+		conda activate $(PROJECT_NAME); \
+	fi; \
 	python src/toolbox/s3utils.py --$(1) $(file)
 endef
 

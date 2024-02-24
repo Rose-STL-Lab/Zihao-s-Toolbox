@@ -109,8 +109,10 @@ def create_config(
         ssh_port = settings["ssh_port"]
         ssh_host = settings["ssh_host"]
     if startup_script is None:
-        if startup_script in settings:
+        if "startup_script" in settings:
             startup_script = settings["startup_script"]
+            if not startup_script.endswith(";"):
+                startup_script += ";"
         else:
             conda_home = settings['conda_home']
             startup_script = (

@@ -15,7 +15,7 @@ if __name__ == '__main__':
         settings = yaml.safe_load(f)
         
     if config.mode == "pod":
-        name = "interactive-pod"
+        name = f"{settings['project_name']}-interactive-pod"
         config = create_config(
             name=name,
             command="",
