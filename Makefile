@@ -14,7 +14,7 @@ endif
 
 -include .env
 
-if [ -f .env ]; then
+ifneq ("$(wildcard .env)","")
 	export $(shell sed 's/=.*//' .env)
 endif
 
