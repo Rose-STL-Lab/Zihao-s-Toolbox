@@ -34,19 +34,18 @@ else
 HAS_CONDA=True
 endif
 
-kube:
 ifneq ("$(wildcard config/kube.yaml)","")
-	@mkdir -p build/
-	@PROJECT_NAME=$(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['project_name'])")
-	@export PROJECT_NAME
+	PROJECT_NAME := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['project_name'])")
+	export PROJECT_NAME
+	USER_NAME := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['user'])")
+	export USER_NAME
+	NAMESPACE := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['namespace'])")
+	export NAMESPACE
+endif
 
-	@USER_NAME=$(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['user'])")
-	@export USER_NAME
-
-	@NAMESPACE=$(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['namespace'])")
-	@export NAMESPACE
-else
-	$(error "config/kube.yaml is not found. kube-related commands will not work.")
+kube:
+ifndef PROJECT_NAME
+    $(error "config/kube.yaml is not found. kube-related commands will not work.")
 endif
 
 #################################################################################
