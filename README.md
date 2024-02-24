@@ -1,54 +1,158 @@
-## Requirements
+## 1. Quick Start (for Nautilus user):
 
-boto3
+Consider simple "machine learning" style experiments: we have two datasets which we want to use both in the cluster and locally. We have two baselines to test.
 
-## Usage:
-
-Add the following Git repository as a submodule to your project repository:
+First create a new git repo with `src` and `data` folder.
 
 ```bash
-git submodule add <repo-git> src/toolbox
+mkdir example; cd example; mkdir src; mkdir data; git init
 ```
 
-### S3 Utilities
-
-Create a .env file in your project repository with these values:
+**Add the following Git repository as a submodule to your project repository:**
 
 ```bash
-S3_BUCKET_NAME=<your_s3_bucket_name>
-AWS_ACCESS_KEY_ID=<your_access_key>
-AWS_SECRET_ACCESS_KEY=<your_secret_key>
-S3_ENDPOINT_URL=https://...
+git submodule add https://github.com/Rose-STL-Lab/Zihao-s-Toolbox.git src/toolbox
 ```
 
-Load environment by `export $(cat .env | xargs)` or through your favorite IDEs.
-
-You can perform wildcard searches, downloads, uploads, or deletions on S3 files:
+**Soft link the Makefile and launch.py to your workspace root:**
 
 ```bash
-❯ python src/toolbox/s3utils.py --interactive 'Model/*t5*wise*419*'
-Local files matching pattern:
-
-S3 files matching pattern:
-Model/Yelp/t5_model_12weeks_wise-sky-249-northern-dawn-288_epoch_1419/config.json
-...
-
-Choose an action [delete (local), remove (S3), download, upload, exit]:
+ln -s src/toolbox/launch.py .
+ln -s src/toolbox/Makefile .
 ```
 
-Use single quotes to prevent shell wildcard expansion. The S3 bucket will sync with your current directory by default, maintaining the original file structure and creating necessary directories.
+Create the two baselines and the two datasets. 
+
+```bash
+echo "1,2,3" > data/1.txt
+echo "4,5,6" > data/2.txt
+echo "import sys; print(sum(map(float, open(sys.argv[1]).read().split(','))) / 3)" > src/avg.py  # Compute average
+echo "import sys, statistics; print(statistics.median(map(float, open(sys.argv[1]).read().strip().split(','))))" > src/med.py  # Compute median
+```
+
+Create `.env` with content:
+```ini
+S3_BUCKET_NAME=example
+S3_ENDPOINT_URL=https://s3-west.nrp-nautilus.io
+```
+
+Create `config/kube.yaml` with content: (remember to fill your own username and namespace)
+```yaml
+project_name: base
+namespace: <NAMESPACE>
+user: <USER>
+registry_host: gitlab-registry.nrp-nautilus.io
+ssh_host: gitlab-ssh.nrp-nautilus.io
+ssh_port: 30622
+conda_home: /opt/conda
+
+image: gitlab-registry.nrp-nautilus.io/prp/jupyter-stack/minimal
+startup_script: >-
+  pip install boto3; mkdir example; cd example; mkdir src; mkdir data; git init; git submodule add https://github.com/Rose-STL-Lab/Zihao-s-Toolbox.git src/toolbox; ln -s src/toolbox/launch.py .; ln -s src/toolbox/Makefile .; echo "import sys; print(sum(map(float, open(sys.argv[1]).read().split(','))) / 3)" > src/avg.py; echo "import sys, statistics; print(statistics.median(map(float, open(sys.argv[1]).read().strip().split(','))))" > src/med.py; echo "cd example" >> ~/.bashrc
+```
+
+> Note that for simplicity, we don't pushed our example code to the Gitlab and build project image. Otherwise `startup_script` (for creating all codes) and `image` would be uncessary, since the image will contain the dependencies and all the latest code. For details, see Section 4.
+
+Create `config/launch.yaml` with content:
+
+```yaml
+project_name: base
+model:
+  average:
+    command: make download file=data/; python src/avg.py <fn>
+  median:
+    command: make download file=data/; python src/med.py <fn>
+dataset:
+  data1:
+    hparam:
+      _fn: data/1.txt
+  data2:
+    hparam:
+      _fn: data/2.txt
+run:
+  dataset: [data1]
+  model: [average]
+```
+
+### Local Runs
+
+Now run `make local`.
+
+```
+Running {'data_fn': ['data/1.txt']} ... > export $(cat .env | xargs) && python src/avg.py data/1.txt
+2.0
+```
+
+We can see that the run with dataset `data1` and model `average` finishes with result `2.0`. Now comment out the `run` section of `launch.yaml` and run `make local` again.
+
+```
+Running {'data_fn': ['data/1.txt']} ... > export $(cat .env | xargs) && python src/avg.py data/1.txt
+2.0
+Running {'data_fn': ['data/1.txt']} ... > export $(cat .env | xargs) && python src/med.py data/1.txt
+2.0
+Running {'data_fn': ['data/2.txt']} ... > export $(cat .env | xargs) && python src/avg.py data/2.txt
+5.0
+Running {'data_fn': ['data/2.txt']} ... > export $(cat .env | xargs) && python src/med.py data/2.txt
+5.0
+```
+
+All possible combinations of experiments are performed locally and sequentially. 
+
+### Prepare Remote Data
+
+If you own a bucket, you can update the S3 credentials in `.env` and then run `make upload file=data/` to upload all your dataset to S3. See Section 3 for details. If you don't have such a bucket, you can request S3 access from Nautilus matrix chat, or use buckets from `rosedata.ucsd.edu`. 
+
+```bash
+❯ make upload file=data/
+Uploaded data/1.txt to data/1.txt
+Uploaded data/2.txt to data/2.txt
+```
+
+### Remote Pod
+
+Now run `make pod`.
+
+```
+❯ make pod
+pod/base-interactive-pod created
+```
+
+You can now navigate to the shell of the pod to test the commands (like `python src/avg.py`) before batch running experiments.
+
+### Remote Batch Jobs
 
 
-### Kube Utilities
+Then, run `make job`.
 
-#### Assumption
+```bash
+Job 'base-average-data1' not found. Creating the job.
+job.batch/base-average-data1 created
+Job 'base-median-data1' not found. Creating the job.
+job.batch/base-median-data1 created
+Job 'base-average-data2' not found. Creating the job.
+job.batch/base-average-data2 created
+Job 'base-median-data2' not found. Creating the job.
+job.batch/base-median-data2 created
+```
+
+Finally, run `make delete` to cleanup all jobs. 
+
+---
+
+## 2. Kube Utilities
+
+### Motivation
+
+The goal of kube utilities is to achieve synchronization between kube cluster and local GPU machine and to automate batch experiments.
+
+### Assumption
 
 Kube utilities assume:
 
 - Your job image is in a GitLab container registry.
 - The image contains a conda environment named project_name located at <conda_home>/envs/.
 
-#### Create Single Pod / Interactive
+### Create Single Pod / Interactive
 
 First, create `config/kube.yaml` containing shared information across all your kube workloads.
 
@@ -102,7 +206,7 @@ if __name__ == '__main__':
 
 This script creates build/example.yaml and launches a pod on examplenode.net. The pod will run indefinitely after hello-world, and the conda environment will be activated by default. Set interactive=False to launch the command as a job. Don't put sleep infinity in command.
 
-#### Launch a batch of workloads
+### Launch a batch of workloads
 
 Create config/launch.yaml with all your experiment commands and hyperparameters:
 
@@ -174,8 +278,43 @@ python src/modelA.py A 2 4
 ```
 
 
+## 3. S3 Utilities
 
-## Example Creation of [Nautilus](https://portal.nrp-nautilus.io/) Gitlab Image
+### Requirements
+
+boto3
+
+### Usage
+
+Create a .env file in your project repository with these values:
+
+```bash
+S3_BUCKET_NAME=<your_s3_bucket_name>
+AWS_ACCESS_KEY_ID=<your_access_key>
+AWS_SECRET_ACCESS_KEY=<your_secret_key>
+S3_ENDPOINT_URL=https://...
+```
+
+Load environment by `export $(cat .env | xargs)` or through your favorite IDEs.
+
+You can perform wildcard searches, downloads, uploads, or deletions on S3 files:
+
+```bash
+❯ python src/toolbox/s3utils.py --interactive 'Model/*t5*wise*419*'
+Local files matching pattern:
+
+S3 files matching pattern:
+Model/Yelp/t5_model_12weeks_wise-sky-249-northern-dawn-288_epoch_1419/config.json
+...
+
+Choose an action [delete (local), remove (S3), download, upload, exit]:
+```
+
+Use single quotes to prevent shell wildcard expansion. The S3 bucket will sync with your current directory by default, maintaining the original file structure and creating necessary directories.
+
+
+
+## 4. Example Creation of [Nautilus](https://portal.nrp-nautilus.io/) Gitlab Image
 
 This tutorial will guide you through the process of creating a GitLab Docker image based on your git repo using the Nautilus platform. This is useful for those looking to automate their deployment and integration workflows using GitLab's CI/CD features. The result image can integrate nicely with Kubeutils.
 
