@@ -35,8 +35,8 @@ HAS_CONDA=True
 endif
 
 kube:
-	@mkdir -p build/
 ifneq ("$(wildcard config/kube.yaml)","")
+	@mkdir -p build/
 	@PROJECT_NAME=$(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['project_name'])")
 	@export PROJECT_NAME
 
