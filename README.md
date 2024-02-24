@@ -1,27 +1,45 @@
+# Kube Toolbox
+
+## 0. Introduction
+
+This toolbox is designed to facilitate the synchronization between a Kubernetes (Kube) cluster and local GPU machines, aiming to streamline the process of running and managing batch experiments. The main advantages of using this toolbox include:
+
+- Synchronization of environment variables (found in `.env` files) between Nautilus cluster executions and local runs, allowing for easy access to credentials via `os.environ`.
+- Simplification of the process to load environment variables, Python environments, and startup scripts.
+- Data and output folder synchronization through S3 storage.
+- Central management of all potential hyperparameters for various datasets and models.
+- Compatibility with a wide range of projects, even those already utilizing configuration files.
+- Capability to execute all combinations of experiments in parallel with a single command.
+
+
 ## 1. Quick Start (for Nautilus user):
 
-Consider simple "machine learning" style experiments: we have two datasets which we want to use both in the cluster and locally. We have two baselines to test.
+Imagine a scenario where you're handling "machine learning" workloads with two datasets you wish to use both in the cluster and locally, and you have two baseline models to evaluate.
 
-First create a new git repo with `src` and `data` folder.
+#### Step 1: Set Up Your Project Repository
+
+Start by creating a new git repository with `src` and `data` directories:
 
 ```bash
 mkdir example; cd example; mkdir src; mkdir data; git init
 ```
 
-**Add the following Git repository as a submodule to your project repository:**
+**Add the toolbox repository as a submodule:**
 
 ```bash
 git submodule add https://github.com/Rose-STL-Lab/Zihao-s-Toolbox.git src/toolbox
 ```
 
-**Soft link the Makefile and launch.py to your workspace root:**
+**Create symbolic links for Makefile and launch.py at the root of your workspace:**
 
 ```bash
 ln -s src/toolbox/launch.py .
 ln -s src/toolbox/Makefile .
 ```
 
-Create the two baselines and the two datasets. 
+#### Step 2: Prepare Baselines and Datasets
+
+Generate two baseline files and two datasets as follows:
 
 ```bash
 echo "1,2,3" > data/1.txt
@@ -30,13 +48,13 @@ echo "import sys; print(sum(map(float, open(sys.argv[1]).read().split(','))) / 3
 echo "import sys, statistics; print(statistics.median(map(float, open(sys.argv[1]).read().strip().split(','))))" > src/med.py  # Compute median
 ```
 
-Create `.env` with content:
+Create a .env file with your S3 bucket details:
 ```ini
 S3_BUCKET_NAME=example
 S3_ENDPOINT_URL=https://s3-west.nrp-nautilus.io
 ```
 
-Create `config/kube.yaml` with content: (remember to fill your own username and namespace)
+Setup your Kubernetes configuration in `config/kube.yaml` (replace `<NAMESPACE>` and `<USER>` with your details):
 ```yaml
 project_name: base
 namespace: <NAMESPACE>
@@ -51,9 +69,9 @@ startup_script: >-
   pip install boto3; mkdir example; cd example; mkdir src; mkdir data; git init; git submodule add https://github.com/Rose-STL-Lab/Zihao-s-Toolbox.git src/toolbox; ln -s src/toolbox/launch.py .; ln -s src/toolbox/Makefile .; echo "import sys; print(sum(map(float, open(sys.argv[1]).read().split(','))) / 3)" > src/avg.py; echo "import sys, statistics; print(statistics.median(map(float, open(sys.argv[1]).read().strip().split(','))))" > src/med.py; echo "cd example" >> ~/.bashrc
 ```
 
-> Note that for simplicity, we don't pushed our example code to the Gitlab and build project image. Otherwise `startup_script` (for creating all codes) and `image` would be uncessary, since the image will contain the dependencies and all the latest code. For details, see Section 4.
+> Note: For simplicity, Quick Start doesn't cover pushing code to GitLab or building a project image. In a full setup, `startup_script` and `image` fields would be unnecessary as the image would already contain the required dependencies, and the default `startup_script` would ensure the latest codebase. For more information, refer to Section 4.
 
-Create `config/launch.yaml` with content:
+Define the experiment configurations in `config/launch.yaml`:
 
 ```yaml
 project_name: base
@@ -74,16 +92,20 @@ run:
   model: [average]
 ```
 
-### Local Runs
+> Caution: don't put `sleep infinity` in the command. It will violate the cluster policy. `make pod` will automatically replace your command by `sleep infinity`.
 
-Now run `make local`.
+#### Running Locally
+
+Execute the following command to run experiments locally: `make local`
+
+Example output:
 
 ```
 Running {'data_fn': ['data/1.txt']} ... > export $(cat .env | xargs) && python src/avg.py data/1.txt
 2.0
 ```
 
-We can see that the run with dataset `data1` and model `average` finishes with result `2.0`. Now comment out the `run` section of `launch.yaml` and run `make local` again.
+Comment out the run section in `launch.yaml` and execute `make local` to run all possible combinations of experiments sequentially.
 
 ```
 Running {'data_fn': ['data/1.txt']} ... > export $(cat .env | xargs) && python src/avg.py data/1.txt
@@ -96,24 +118,26 @@ Running {'data_fn': ['data/2.txt']} ... > export $(cat .env | xargs) && python s
 5.0
 ```
 
-All possible combinations of experiments are performed locally and sequentially. 
+#### Uploading Data to Remote Storage
 
-### Prepare Remote Data
+If you have an S3 bucket, update the credentials in `.env` and use the following command to upload your dataset: `make upload file=data/`
 
-If you own a bucket, you can update the S3 credentials in `.env` and then run `make upload file=data/` to upload all your dataset to S3. See Section 3 for details. If you don't have such a bucket, you can request S3 access from Nautilus matrix chat, or use buckets from `rosedata.ucsd.edu`. 
+Example output:
 
 ```bash
-❯ make upload file=data/
 Uploaded data/1.txt to data/1.txt
 Uploaded data/2.txt to data/2.txt
 ```
 
+For users without an S3 bucket, request access from the Nautilus matrix chat or use buckets provided by `rosedata.ucsd.edu`. You don't need a bucket for this tutorial.
+
 ### Remote Pod
 
-Now run `make pod`.
+To create a remote pod, run: `make pod`
+
+Example output:
 
 ```
-❯ make pod
 pod/base-interactive-pod created
 ```
 
@@ -122,7 +146,9 @@ You can now navigate to the shell of the pod to test the commands (like `python 
 ### Remote Batch Jobs
 
 
-Then, run `make job`.
+To run all possible combinations of experiments in parallel with Nautilus, run: `make job`
+
+Example output:
 
 ```bash
 Job 'base-average-data1' not found. Creating the job.
@@ -135,26 +161,15 @@ Job 'base-median-data2' not found. Creating the job.
 job.batch/base-median-data2 created
 ```
 
-Finally, run `make delete` to cleanup all jobs. 
+> Be careful: `make delete` operates by removing all pods and jobs under your user label.
+
+Finally, run `make delete` to cleanup all workloads.
 
 ---
 
-## 2. Kube Utilities
+## 2. Kube Utilities Specification
 
-### Motivation
-
-The goal of kube utilities is to achieve synchronization between kube cluster and local GPU machine and to automate batch experiments.
-
-### Assumption
-
-Kube utilities assume:
-
-- Your job image is in a GitLab container registry.
-- The image contains a conda environment named project_name located at <conda_home>/envs/.
-
-### Create Single Pod / Interactive
-
-First, create `config/kube.yaml` containing shared information across all your kube workloads.
+`config/kube.yaml`:
 
 ```yaml
 project_name: <project-name>
@@ -174,115 +189,42 @@ hostname_blacklist:
   - <unusable-node-hostnames-list>
 ```
 
-Define either gpu_whitelist or gpu_blacklist and either hostname_blacklist or hostname_whitelist. Ensure consistency in project_name across your GitLab repository (<project_name>.git), conda environment (envs/<project_name>), image pull secret (<project_name>-read-registry), and S3 configuration (<project_name>-s3cfg). Avoid hyphens and underscores in project_name.
+`gpu_whitelist` and `gpu_blacklist` cannot be both set. If gpu_whitelist is set, only the specified GPUs will be used. If gpu_blacklist is set, all GPUs except the specified ones will be used. The same applies to `hostname_blacklist` and `hostname_whitelist`.
+
+Example GPU list:
+
+```yaml
+  - NVIDIA-TITAN-RTX
+  - NVIDIA-RTX-A4000
+  - NVIDIA-RTX-A5000
+  - Quadro-RTX-6000
+  - NVIDIA-A40
+  - NVIDIA-RTX-A6000
+  - Quadro-RTX-8000
+  - NVIDIA-GeForce-RTX-3090
+  - NVIDIA-GeForce-GTX-1080-Ti
+  - NVIDIA-GeForce-GTX-2080-Ti
+  - NVIDIA-A10
+  - NVIDIA-A100-SXM4-80GB
+  - Tesla-V100-SXM2-32GB
+  - NVIDIA-A100-PCIE-40GB
+  - NVIDIA-A100-SXM4-80GB
+  - NVIDIA-A100-80GB-PCIe
+```
+
+Ensure consistency in project_name across your GitLab repository (<project_name>.git), conda environment (envs/<project_name>), image pull secret (<project_name>-read-registry), and S3 configuration (<project_name>-s3cfg). Avoid hyphens and underscores in project_name.
 
 Your GitLab username would be used as user to label your kube workloads (label: <user>). For registry details, refer to the GitLab container registry documentation.
 
-To create a pod, use the following Python script:
-
-```python
-import yaml
-from toolbox.kubeutils import create_config
-from toolbox.utils import load_env_file
-
-if __name__ == '__main__':
-    name = "example"
-    config = create_config(
-        name=name,
-        command="echo 'Hello, World!'",
-        gpu_count=0,
-        hostname_whitelist=['examplenode.net'],
-        interactive=True,
-        env=load_env_file(),
-        volumes={
-            'example-vol': '/temp/'
-        }
-    )
-    yaml.Dumper.ignore_aliases = lambda *args : True
-    with open(f"build/{name}.yaml", "w") as f:
-        yaml.dump(config, f)
-    os.system(f"kubectl apply -f build/{name}.yaml")
-```
-
-This script creates build/example.yaml and launches a pod on examplenode.net. The pod will run indefinitely after hello-world, and the conda environment will be activated by default. Set interactive=False to launch the command as a job. Don't put sleep infinity in command.
-
-### Launch a batch of workloads
-
-Create config/launch.yaml with all your experiment commands and hyperparameters:
-
-```yaml
-project_name: <project-name>
-model: 
-  modelA: 
-    command: python src/modelA.py <name> <hp1> <hp2>
-    hparam: 
-      hp1: [1, 2]
-    gpu_count: ...
-    cpu_count: ...
-
-  modelB:
-    command: python src/modelB.py <name> <hp1> <hp2> 
-      hp1: [2, 3]
-dataset:
-  dataA:
-    hparam:
-      # Hparam prepended with _ will not in experiment name
-      _name: A
-      hp2: [3, 4]
-  dataB:
-    hparam:
-      _name: B
-      hp2: [3, 4]
-  dataC:
-    hparam:
-      _name: C
-      hp2: [3, 4]
-run:
-  dataset: [dataA, dataB, dataC]
-  model: [modelA, modelB]
-#   hparam:
-#     hp2: [3]
-```
-
-Execute experiments with the script below:
-
-```python
-from toolbox.kubeutils import batch
-from toolbox.utils import load_env_file
-import yaml
-import os
 
 
-if __name__ == '__main__':
-    
-    with open("config/launch.yaml", "r") as f:
-        settings = yaml.safe_load(f)
-
-    batch(
-        run_configs=settings['run'],
-        dataset_configs=settings['dataset'],
-        model_configs=settings['model'],
-        env=load_env_file(),
-        mode="dryrun"
-    )
-```
-
-This script will execute all model and dataset combinations with respective hyperparameters. Specifying hparam in the run section allows skipping certain combinations, facilitating targeted experiment reruns. The examples would skip all runs where `hp2 != 3`.
-
-```bash
-python src/modelA.py A 1 3
-python src/modelA.py A 1 4
-python src/modelA.py A 2 3
-python src/modelA.py A 2 4
-...
-```
-
-
-## 3. S3 Utilities
+## 3. S3 Utilities Specification
 
 ### Requirements
 
-boto3
+```
+poetry add boto3
+```
 
 ### Usage
 
@@ -295,12 +237,12 @@ AWS_SECRET_ACCESS_KEY=<your_secret_key>
 S3_ENDPOINT_URL=https://...
 ```
 
-Load environment by `export $(cat .env | xargs)` or through your favorite IDEs.
+Load environment by `export $(cat .env | xargs)` or through make commands.
 
 You can perform wildcard searches, downloads, uploads, or deletions on S3 files:
 
 ```bash
-❯ python src/toolbox/s3utils.py --interactive 'Model/*t5*wise*419*'
+❯ make interactive file='Model/*t5*wise*419*'
 Local files matching pattern:
 
 S3 files matching pattern:
@@ -312,11 +254,21 @@ Choose an action [delete (local), remove (S3), download, upload, exit]:
 
 Use single quotes to prevent shell wildcard expansion. The S3 bucket will sync with your current directory by default, maintaining the original file structure and creating necessary directories.
 
+Beyond Make commands, you can also directly import the functions from `src/toolbox/s3utils.py` to your Python scripts.
+
+```python
+from toolbox.s3utils import download_s3_path
+
+folder_path = f"Data/{dataset}"
+download_s3_path(folder_path)
+```
+
+If your Python script is invoked via `make`, the environment variables will be automatically loaded.
 
 
 ## 4. Example Creation of [Nautilus](https://portal.nrp-nautilus.io/) Gitlab Image
 
-This tutorial will guide you through the process of creating a GitLab Docker image based on your git repo using the Nautilus platform. This is useful for those looking to automate their deployment and integration workflows using GitLab's CI/CD features. The result image can integrate nicely with Kubeutils.
+This section will guide you through the process of creating a GitLab Docker image based on your git repo using the Nautilus platform. This is useful for those looking to automate their deployment and integration workflows using GitLab's CI/CD features. The result image can integrate nicely with Kubeutils.
 
 > Note: If Nautilus SSH is no longer `gitlab-ssh.nrp-nautilus.io:30622`, please modifies `SSH_CONFIG` and .`gitlab-ci.yml` correspondingly.
 
