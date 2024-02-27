@@ -54,6 +54,7 @@ def create_config(
     env: dict = {},
     project_name: str = None,
     interactive: bool = False,
+    server_command: str = "sleep infinity",
     startup_script: str = None,
     registry_host: str = None,
     ssh_host: str = None,
@@ -76,6 +77,9 @@ def create_config(
     ## Omit undefined kwargs
     **_
 ):
+    assert startup_script is None or "sleep infinity" not in startup_script
+    assert "sleep infinity" not in command
+    
     ## Initialization
     if namespace is None:
         namespace = settings["namespace"]
@@ -156,7 +160,7 @@ def create_config(
                     project_name, 
                     "/bin/bash", 
                     "-c", 
-                    ((startup_script + "sleep infinity") if interactive else (startup_script + command))
+                    ((startup_script + server_command) if interactive else (startup_script + command))
                 ],
                 "resources": {
                     "limits": {

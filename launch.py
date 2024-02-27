@@ -13,6 +13,14 @@ if __name__ == '__main__':
     
     with open("config/launch.yaml", "r") as f:
         settings = yaml.safe_load(f)
+        if "dataset" not in settings:
+            settings["dataset"] = {"": {}}
+        assert "model" in settings, "model is a required field in kube.yaml"
+        for model in settings["model"]:
+            if settings["model"][model] is None:
+                settings["model"][model] = {}
+            if "command" not in settings["model"][model]:
+                settings["model"][model]["command"] = ""
         
     if config.mode == "pod":
         name = f"{settings['project_name']}-interactive-pod"
