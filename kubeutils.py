@@ -331,7 +331,7 @@ def batch(
                 hparam.update(model_configs[model]["hparam"])
             
             for config, hparam_dict in zip(*fill_val(model_configs[model], hparam)):
-                name = f"{project_name}-{model}-{dataset}"
+                name = f"{settings['user']}-{project_name}-{model}-{dataset}"
                 for key, value in hparam_dict.items():
                     if not key.startswith("_"):
                         name += f"-{key}-{value}"
