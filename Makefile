@@ -98,8 +98,8 @@ dryrun: kube
 	$(call launch_command,dryrun)
 
 delete: kube
-	kubectl -n $(NAMESPACE) delete jobs -l user=$(USER_NAME)
-	kubectl -n $(NAMESPACE) delete pods -l user=$(USER_NAME)
+	kubectl -n $(NAMESPACE) delete jobs -l user=$(USER_NAME) -l project=$(PROJECT_NAME)
+	kubectl -n $(NAMESPACE) delete pods -l user=$(USER_NAME) -l project=$(PROJECT_NAME)
 
 #################################################################################
 # S3 related                                                                    #

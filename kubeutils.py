@@ -145,7 +145,7 @@ def create_config(
     
     metadata = {
         "namespace": namespace,
-        "labels": {"user": user}
+        "labels": {"user": user, "project": project_name}
     }
 
     template = {
