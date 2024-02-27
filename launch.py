@@ -1,4 +1,4 @@
-from toolbox.kubeutils import create_config, batch
+from toolbox.kubeutils import create_config, batch, settings
 from toolbox.utils import load_env_file
 import yaml
 import argparse
@@ -12,43 +12,43 @@ if __name__ == '__main__':
     config = arg.parse_args()
     
     with open("config/launch.yaml", "r") as f:
-        settings = yaml.safe_load(f)
-        if "dataset" not in settings:
-            settings["dataset"] = {"": {}}
-        assert "model" in settings, "model is a required field in kube.yaml"
-        for model in settings["model"]:
-            if settings["model"][model] is None:
-                settings["model"][model] = {}
-            if "command" not in settings["model"][model]:
-                settings["model"][model]["command"] = ""
+        launch_settings = yaml.safe_load(f)
+        if "dataset" not in launch_settings:
+            launch_settings["dataset"] = {"": {}}
+        assert "model" in launch_settings, "model is a required field in kube.yaml"
+        for model in launch_settings["model"]:
+            if launch_settings["model"][model] is None:
+                launch_settings["model"][model] = {}
+            if "command" not in launch_settings["model"][model]:
+                launch_settings["model"][model]["command"] = ""
         
     if config.mode == "pod":
-        name = f"{settings['project_name']}-interactive-pod"
+        name = f"{settings['user']}-{launch_settings['project_name']}-interactive-pod"
         config = create_config(
             name=name,
             command="",
             interactive=True,
             env=load_env_file(),
-            **settings
+            **launch_settings
         )
         yaml.Dumper.ignore_aliases = lambda *args : True
         with open(f"build/{name}.yaml", "w") as f:
             yaml.dump(config, f)
         os.system(f"kubectl apply -f build/{name}.yaml")
     else:
-        if 'run' in settings:
-            run_configs = settings['run']
+        if 'run' in launch_settings:
+            run_configs = launch_settings['run']
         else:
             run_configs = {
-                "model": list(settings['model'].keys()),
-                "dataset": list(settings['dataset'].keys()),
+                "model": list(launch_settings['model'].keys()),
+                "dataset": list(launch_settings['dataset'].keys()),
             }
         
         batch(
             run_configs=run_configs,
-            dataset_configs=settings['dataset'],
-            model_configs=settings['model'],
+            dataset_configs=launch_settings['dataset'],
+            model_configs=launch_settings['model'],
             env=load_env_file(),
             mode=config.mode,
-            **settings
+            **launch_settings
         )
