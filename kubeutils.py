@@ -4,6 +4,7 @@ import copy
 import itertools
 import subprocess
 import json
+from copy import deepcopy
 from typing import List
 
 
@@ -75,10 +76,14 @@ def create_config(
     gpu_whitelist: List[str] = None,
     
     ## Omit undefined kwargs
-    **_
+    **ignored
 ):
     assert startup_script is None or "sleep infinity" not in startup_script
     assert "sleep infinity" not in command
+    
+    for key, value in ignored.items():
+        if key != "hparam":
+            print(f"[Warning] Key {key}={value} is unknown. Ignoring it.")
     
     ## Initialization
     if namespace is None:
@@ -91,6 +96,11 @@ def create_config(
         if "image" in settings:
             image = settings["image"]
         else:
+            if registry_host is None:
+                if "registry_host" in settings:
+                    registry_host = settings["registry_host"]
+                else:
+                    raise ValueError("[Error] registry_host is a required field in kube.yaml if image undefined")
             image = f"{settings['registry_host']}/{user}/{project_name}:latest"
     if image_pull_secrets is None:
         if "image_pull_secrets" in settings:
@@ -107,18 +117,26 @@ def create_config(
             hostname_blacklist = settings["hostname_blacklist"]
         if "hostname_whitelist" in settings:
             hostname_whitelist = settings["hostname_whitelist"]
-    if registry_host is None:
-        registry_host = settings["registry_host"]
-    if ssh_host is None or ssh_port is None:
-        ssh_port = settings["ssh_port"]
-        ssh_host = settings["ssh_host"]
     if startup_script is None:
         if "startup_script" in settings:
             startup_script = settings["startup_script"]
             if not startup_script.endswith(";"):
                 startup_script += ";"
         else:
-            conda_home = settings['conda_home']
+            if "conda_home" in settings:
+                conda_home = settings['conda_home']
+            else:
+                raise ValueError(("[Error] conda_home is a required field in kube.yaml"
+                                  "if startup_script undefined"))
+            
+            if ssh_host is None or ssh_port is None:
+                if "ssh_host" in settings and "ssh_port" in settings:
+                    ssh_port = settings["ssh_port"]
+                    ssh_host = settings["ssh_host"]
+                else:
+                    raise ValueError(("[Error] ssh_host and ssh_port are required fields in kube.yaml "
+                                      "if startup_script undefined"))
+            
             startup_script = (
                 f'ssh-keyscan -t ecdsa -p {ssh_port} -H {ssh_host} '
                 '> /root/.ssh/known_hosts; git fetch --all --prune; git reset --hard origin/master; '
@@ -126,14 +144,16 @@ def create_config(
                 f'echo "conda activate {project_name}" >> ~/.bashrc; '
                 f'export PATH="{conda_home}/envs/{project_name}/bin/:$PATH"; '
             )
-    if tolerations is None and "tolerations" in settings:
-        tolerations = settings["tolerations"]
-    else:
-        tolerations = []
-    if volumes is None and "volumes" in settings:
-        volumes = settings["volumes"]
-    else:
-        volumes = {}
+    if tolerations is None:
+        if "tolerations" in settings:
+            tolerations = settings["tolerations"]
+        else:
+            tolerations = []
+    if volumes is None:
+        if "volumes" in settings:
+            volumes = settings["volumes"]
+        else:
+            volumes = {}
     if "PYTHONPATH" not in env:
         env["PYTHONPATH"] = "src"
     elif "src" not in env["PYTHONPATH"].split(":"):
@@ -331,7 +351,13 @@ def batch(
                 hparam.update(model_configs[model]["hparam"])
             
             for config, hparam_dict in zip(*fill_val(model_configs[model], hparam)):
-                name = f"{settings['user']}-{project_name}-{model}-{dataset}"
+                if "prefix" in settings:
+                    if settings["prefix"] == "":
+                        name = f"{project_name}-{model}-{dataset}"
+                    else:
+                        name = f"{settings['prefix']}-{project_name}-{model}-{dataset}"
+                else:
+                    name = f"{settings['user']}-{project_name}-{model}-{dataset}"
                 for key, value in hparam_dict.items():
                     if not key.startswith("_"):
                         name += f"-{key}-{value}"
@@ -341,20 +367,38 @@ def batch(
                 else:
                     if "hparam" in run_configs and "hparam" in config:
                         del config["hparam"]
-                    config = create_config(
-                        name=name,
-                        project_name=project_name,
-                        **config,
-                        **kwargs
-                    )
+                    
+                    config_kwargs = deepcopy(kwargs['model'][model])
+                    config_kwargs.update(kwargs['dataset'][dataset])
+                    config_kwargs.update(config)
+                    if 'env' in config_kwargs:
+                        config_kwargs['env'].update(kwargs['env'])
+                    else:
+                        config_kwargs['env'] = kwargs['env']
+                    
+                    # Remove projectwise keys
+                    for key in ["project_name", "user", "namespace", "prefix"]:
+                        if key in config_kwargs:
+                            print(f"[Warning] Key {key}={config_kwargs[key]} is not allowed in {name}. Ignoring it.")
+                            del config_kwargs[key]
+
                     if mode == "local":
-                        if "local_command" in model_configs[model]:
+                        if "local_command" in config_kwargs:
                             model_configs[model]['command'] = model_configs[model]['local_command']
                         command = fill_val({'_': model_configs[model]['command']}, hparam_dict)[0][0]['_']
                         command = 'export $(cat .env | xargs) && ' + command
                         print(f"Running {hparam_dict} ... > {command}")
                         os.system(command)
                         continue
+                            
+                    if "local_command" in config_kwargs:
+                        del config_kwargs["local_command"]
+                    
+                    config = create_config(
+                        name=name,
+                        project_name=project_name,
+                        **config_kwargs
+                    )
                     yaml.Dumper.ignore_aliases = lambda *_ : True
                     if not os.path.exists("build"):
                         os.makedirs("build")

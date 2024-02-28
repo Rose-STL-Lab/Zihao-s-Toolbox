@@ -77,12 +77,28 @@ Define the experiment configurations in `config/launch.yaml`:
 project_name: base
 model:
   average:
+    # <fn> will be automatically replaced by hparam values
     command: make download file=data/; python src/avg.py <fn>
+    ## If the command running locally is different from the one running remotely
+    # local_command: python src/avg.py <fn>  
+    # # Model can also have hparam
+    # hparam:
+    #   hid_dim: 256
+    #   ...
+    # # Override *non-projectwise* kube config, see Section 2
+    gpu_count: 0
+    # memory: 8  # 8GiB
+    # image: gitlab-registry.nrp-nautilus.io/prp/jupyter-stack/minimal
+    # ...
   median:
     command: make download file=data/; python src/med.py <fn>
+    gpu_count: 0
 dataset:
   data1:
     hparam:
+      # Launch will automatically consider all combinations of hparam
+      # hparam preceded by _ will NOT appear in the job name
+      # If your hparam contain special characters, you must _ them
       _fn: data/1.txt
   data2:
     hparam:
@@ -172,15 +188,45 @@ Finally, run `make delete` to cleanup all workloads.
 `config/kube.yaml`:
 
 ```yaml
-project_name: <project-name>
-namespace: <kube-namespace>
-user: <gitlab-user-name>
-conda_home: <conda-home-directory>
+##### Project-wise configuration, should be the same across all experiments
+# Will not be overwritten by the launch.yaml
+project_name: str, required
+user: str, required
+namespace: str, required
+prefix: str  # Prefix of the names of your workloads, default to user
+
+##### Other field, can be overwritten in launch.yaml #####
+
+# env will be overridden by `.env`, therefore never effective in `kube.yaml`
+# however, specify env in `launch.yaml` can add new env variables
+env: 
+  <env-key>: <env-value>
+
+## [required] If startup_script is not defined, the following fields are required to automatically keep your git repo up-to-date at startup
+startup_script: str
+conda_home: str
+ssh_host: str
+ssh_port: int
+
+# Will override sleep-infinity when running interactive pod
+server_command: str
+
+## For CPU and Memory, the limit will be twice the requested
+gpu_count: int
+cpu_count: int
+memory: int 
+
+## Mount PVC to path
 volumes:
   <pvc-name>: <mount-path>
-registry_host: <docker-image-registry>
-ssh_host: <gitlab-ssh-host>
-ssh_port: <gitlab-ssh-port>
+
+## If image is not defined, the host are required to automatically find your project image link
+image: str
+registry_host: str
+## If your image is private and your pull secret name does not default to <project-name>-read-registry
+image_pull_secrets: str
+
+## Will tolerate no-schedule taints
 tolerations: 
   - <toleration-key>
 gpu_whitelist:

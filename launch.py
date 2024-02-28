@@ -23,7 +23,13 @@ if __name__ == '__main__':
                 launch_settings["model"][model]["command"] = ""
         
     if config.mode == "pod":
-        name = f"{settings['user']}-{launch_settings['project_name']}-interactive-pod"
+        if "prefix" in settings:
+            if settings["prefix"] == "":
+                name = f"{settings['project_name']}-interactive-pod"
+            else:
+                name = f"{settings['prefix']}-{settings['project_name']}-interactive-pod"
+        else:
+            name = f"{settings['user']}-{settings['project_name']}-interactive-pod"
         config = create_config(
             name=name,
             command="",
