@@ -80,8 +80,8 @@ define launch_command
 	@if [ -n "$(PROJECT_NAME)" ]; then \
 		CONDA_ENV_ROOT=$$(if echo $$CONDA_PREFIX | grep -q '/envs/'; then echo $$CONDA_PREFIX | sed 's|/envs/.*|/|'; else echo $$CONDA_PREFIX; fi); \
 		source $$CONDA_ENV_ROOT/etc/profile.d/conda.sh && \
-		if conda env list | grep -q "$(PROJECT_NAME)"; then \
-			conda activate $(PROJECT_NAME); \
+		if $$CONDA_ENV_ROOT/bin/conda env list | grep -q "$(PROJECT_NAME)"; then \
+			conda activate $(PROJECT_NAME) --no-stack; \
 		fi; \
 	fi; \
 	python launch.py --mode $(1)
@@ -112,8 +112,8 @@ define s3_command
 	@if [ -n "$(PROJECT_NAME)" ]; then \
 		CONDA_ENV_ROOT=$$(if echo $$CONDA_PREFIX | grep -q '/envs/'; then echo $$CONDA_PREFIX | sed 's|/envs/.*|/|'; else echo $$CONDA_PREFIX; fi); \
 		source $$CONDA_ENV_ROOT/etc/profile.d/conda.sh && \
-		if conda env list | grep -q "$(PROJECT_NAME)"; then \
-			conda activate $(PROJECT_NAME); \
+		if $$CONDA_ENV_ROOT/bin/conda env list | grep -q "$(PROJECT_NAME)"; then \
+			conda activate $(PROJECT_NAME) --no-stack; \
 		fi; \
 	fi; \
 	python src/toolbox/s3utils.py --$(1) $(file)
