@@ -81,9 +81,9 @@ model:
     command: make download file=data/; python src/avg.py <fn>
     ## If the command running locally is different from the one running remotely
     # local_command: python src/avg.py <fn>  
-    # # Model can also have hparam
+    # # Model can also have hparam, hparam could be either list or single value
     # hparam:
-    #   hid_dim: 256
+    #   hid_dim: [256, 512]
     #   ...
     # # Override *non-projectwise* kube config, see Section 2
     gpu_count: 0
