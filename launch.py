@@ -30,6 +30,8 @@ if __name__ == '__main__':
                 name = f"{settings['prefix']}-{settings['project_name']}-interactive-pod"
         else:
             name = f"{settings['user']}-{settings['project_name']}-interactive-pod"
+        del launch_settings["model"]
+        del launch_settings["dataset"]
         config = create_config(
             name=name,
             command="",
