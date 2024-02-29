@@ -99,9 +99,21 @@ pod: kube
 dryrun: kube
 	$(call launch_command,dryrun)
 
-delete: kube
-	kubectl -n $(NAMESPACE) delete jobs -l user=$(USER_NAME) -l project=$(PROJECT_NAME)
-	kubectl -n $(NAMESPACE) delete pods -l user=$(USER_NAME) -l project=$(PROJECT_NAME)
+delete_job:
+	@echo "You are going to delete the following jobs:"
+	@kubectl -n $(NAMESPACE) get jobs -l user=$(USER_NAME) -l project=$(PROJECT_NAME)
+	@read -p "Are you sure you want to continue? [y/N]: " confirm && [ "$$confirm" = "y" ] || exit 1
+	@echo "Deleting jobs..."
+	@kubectl -n $(NAMESPACE) delete jobs -l user=$(USER_NAME) -l project=$(PROJECT_NAME)
+
+delete_pod:
+	@echo "You are going to delete the following pods:"
+	@kubectl -n $(NAMESPACE) get pods -l user=$(USER_NAME) -l project=$(PROJECT_NAME)
+	@read -p "Are you sure you want to continue? [y/N]: " confirm && [ "$$confirm" = "y" ] || exit 1
+	@echo "Deleting pods..."
+	@kubectl -n $(NAMESPACE) delete pods -l user=$(USER_NAME) -l project=$(PROJECT_NAME)
+
+delete: kube delete_pod delete_job
 
 #################################################################################
 # S3 related                                                                    #
