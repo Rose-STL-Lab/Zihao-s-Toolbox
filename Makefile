@@ -168,6 +168,7 @@ up: upload
 overwrite: prompt_for_file
 	$(call s3_command,remove)
 	$(call s3_command,upload)
+ow: overwrite
 
 ## Remove s3 custom file or folder
 remove: prompt_for_file
