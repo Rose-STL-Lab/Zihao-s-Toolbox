@@ -20,7 +20,7 @@ def load_env_file(file_path='.env'):
     return env_dict
 
 
-def load_class(info: dict):
+def load_class(info: dict, init=True):
     import importlib
 
     assert 'class_path' in info
@@ -39,9 +39,12 @@ def load_class(info: dict):
     
     # Load the class and initialize with the given arguments
     cls = getattr(module, class_name)
-    instance = cls(**init_args)
     
-    return instance
+    if not init:
+        return cls
+    else:
+        instance = cls(**init_args)
+        return instance
 
 
 def increase_u_limit():
