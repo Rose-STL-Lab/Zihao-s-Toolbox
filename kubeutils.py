@@ -140,7 +140,7 @@ def create_config(
             startup_script = (
                 f'ssh-keyscan -t ecdsa -p {ssh_port} -H {ssh_host} '
                 '> /root/.ssh/known_hosts; git fetch --all --prune; '
-                'git reset --hard origin/$(git remote show origin | grep "HEAD branch" | cut -d' ' -f5) '
+                'git reset --hard origin/$(git remote show origin | grep "HEAD branch" | cut -d" " -f5) '
                 'git submodule update --init --recursive; '
                 f'echo "conda activate {project_name}" >> ~/.bashrc; '
                 f'export PATH="{conda_home}/envs/{project_name}/bin/:$PATH"; '
