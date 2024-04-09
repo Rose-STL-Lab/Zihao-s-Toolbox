@@ -6,10 +6,21 @@ import subprocess
 import json
 from copy import deepcopy
 from typing import List
+import os
+import base64
 
 
 with open("config/kube.yaml", "r") as f:
     settings = yaml.safe_load(f)
+    
+    
+# Function to base64 encode the content of a given file
+def base64_encode_file_content(file_path):
+    with open(file_path, 'rb') as file:
+        file_content = file.read()
+        # Base64 encode the binary data
+        base64_content = base64.b64encode(file_content).decode('utf-8')
+    return base64_content
     
 
 def check_job_status(name):
@@ -137,7 +148,27 @@ def create_config(
                     raise ValueError(("[Error] ssh_host and ssh_port are required fields in kube.yaml "
                                       "if startup_script undefined"))
             
+            # Add the commands to regenerate the config files
+            commands = ''
+            for root, _, files in os.walk('config'):
+                for file_name in files:
+                    # Construct the full file path
+                    file_path = os.path.join(root, file_name)
+                    # Base64 encode the file content
+                    encoded_content = base64_encode_file_content(file_path)
+                    # Generate the command
+                    command = f"echo {encoded_content} | base64 -d | tr -d '\\r' > config/{file_name} && echo >> config/{file_name}; "
+                    # Print the command
+                    commands += command + '\n'
+            
+            if os.path.exists('.env'):
+                file_path = '.env'
+                encoded_content = base64_encode_file_content(file_path)
+                commands += f"echo {encoded_content} | base64 -d | tr -d '\\r' > .env && echo >> .env; "
+            
             startup_script = (
+                'mkdir -p config; ' +
+                commands +
                 f'ssh-keyscan -t ecdsa -p {ssh_port} -H {ssh_host} '
                 '> /root/.ssh/known_hosts; git fetch --all --prune; '
                 'git reset --hard origin/$(git remote show origin | grep "HEAD branch" | cut -d" " -f5); '
@@ -400,7 +431,7 @@ def batch(
                         project_name=project_name,
                         **config_kwargs
                     )
-                    yaml.Dumper.ignore_aliases = lambda *_ : True
+                    yaml.Dumper.ignore_aliases = lambda *_: True
                     if not os.path.exists("build"):
                         os.makedirs("build")
                     with open(f"build/{name}.yaml", "w") as f:

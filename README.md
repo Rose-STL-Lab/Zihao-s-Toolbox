@@ -338,13 +338,13 @@ kubectl create secret docker-registry <project_name>-read-registry \
     --docker-password=<password>
 ```
 7. In Gitlab Repo - Settings - CI/CD - **Variables**, enter the following variables:
-  - SSH_CONFIG: `SG9zdCBnaXRsYWItc3NoLm5ycC1uYXV0aWx1cy5pbwogICAgSG9zdE5hbWUgZ2l0bGFiLXNzaC5ucnAtbmF1dGlsdXMuaW8KICAgIFVzZXIgZ2l0CiAgICBQb3J0IDMwNjIyCiAgICBJZGVudGl0eUZpbGUgL3Jvb3QvLnNzaC9pZF9yc2EK`, which is the base64 encoding of
+  - SSH_CONFIG: `SG9zdCBnaXRsYWItc3NoLm5ycC1uYXV0aWx1cy5pbwogICAgSG9zdE5hbWUgZ2l0bGFiLXNzaC5ucnAtbmF1dGlsdXMuaW8KICAgIFVzZXIgZ2l0CiAgICBQb3J0IDMwNjIyCiAgICBJZGVudGl0eUZpbGUgfi8uc3NoL2lkX3JzYQoK`, which is the base64 encoding of
   ```
   Host gitlab-ssh.nrp-nautilus.io
     HostName gitlab-ssh.nrp-nautilus.io
     User git
     Port 30622
-    IdentityFile /root/.ssh/id_rsa
+    IdentityFile ~/.ssh/id_rsa
   ```
   - CI_REGISTRY_PASSWORD: the write `password` from the previous step.
   - CI_REGISTRY_USER: the write `username` from the previous step.
