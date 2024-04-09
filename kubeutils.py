@@ -157,14 +157,14 @@ def create_config(
                     # Base64 encode the file content
                     encoded_content = base64_encode_file_content(file_path)
                     # Generate the command
-                    command = f"echo {encoded_content} | base64 -d | tr -d '\\r' > config/{file_name} && echo >> config/{file_name}; "
+                    command = f"echo {encoded_content} | base64 -d | tr -d '\\r' > config/{file_name} && echo >> config/{file_name}; \n"
                     # Print the command
-                    commands += command + '\n'
+                    commands += command
             
             if os.path.exists('.env'):
                 file_path = '.env'
                 encoded_content = base64_encode_file_content(file_path)
-                commands += f"echo {encoded_content} | base64 -d | tr -d '\\r' > .env && echo >> .env; "
+                commands += f"echo {encoded_content} | base64 -d | tr -d '\\r' > .env && echo >> .env; \n"
             
             startup_script = (
                 'mkdir -p config; ' +
