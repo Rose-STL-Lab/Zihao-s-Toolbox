@@ -8,6 +8,7 @@ from copy import deepcopy
 from typing import List
 import os
 import base64
+import sys
 
 
 with open("config/kube.yaml", "r") as f:
@@ -21,6 +22,19 @@ def base64_encode_file_content(file_path):
         # Base64 encode the binary data
         base64_content = base64.b64encode(file_content).decode('utf-8')
     return base64_content
+
+
+def is_binary_file(file_path):
+    try:
+        with open(file_path, 'rb') as file:
+            chunk = file.read(1024)  # Read first 1024 bytes
+        text_chars = bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7f})
+        if not chunk:  # Empty files are considered text files
+            return False
+        return bool(chunk.translate(None, text_chars))
+    except Exception as e:
+        print(f"[Error] Could not read file {file_path}: {e}")
+        return True
     
 
 def check_job_status(name):
@@ -85,6 +99,9 @@ def create_config(
     hostname_whitelist: List[str] = None,
     gpu_blacklist: List[str] = None,
     gpu_whitelist: List[str] = None,
+    
+    ## Files to map
+    file: List[str] = [],
     
     ## Omit undefined kwargs
     **ignored
@@ -156,6 +173,7 @@ def create_config(
                     file_path = os.path.join(root, file_name)
                     # Base64 encode the file content
                     encoded_content = base64_encode_file_content(file_path)
+                    file_name = file_name.replace("'", "'\\''")
                     # Generate the command
                     command = f"echo {encoded_content} | base64 -d | tr -d '\\r' > config/{file_name} && echo >> config/{file_name}; \n"
                     # Print the command
@@ -167,15 +185,46 @@ def create_config(
                 commands += f"echo {encoded_content} | base64 -d | tr -d '\\r' > .env && echo >> .env; \n"
             
             startup_script = (
-                'mkdir -p config; ' +
-                commands +
-                f'ssh-keyscan -t ecdsa -p {ssh_port} -H {ssh_host} '
-                '> /root/.ssh/known_hosts; git fetch --all --prune; '
-                'git reset --hard origin/$(git remote show origin | grep "HEAD branch" | cut -d" " -f5); '
-                'git submodule update --init --recursive; '
-                f'echo "conda activate {project_name}" >> ~/.bashrc; '
-                f'export PATH="{conda_home}/envs/{project_name}/bin/:$PATH"; '
+                f"""mkdir -p config; 
+ssh-keyscan -t ecdsa -p {ssh_port} -H {ssh_host} > /root/.ssh/known_hosts; git fetch --all --prune; 
+git reset --hard origin/$(git remote show origin | grep "HEAD branch" | cut -d" " -f5); 
+git submodule update --init --recursive; 
+echo "conda activate {project_name}" >> ~/.bashrc; 
+export PATH="{conda_home}/envs/{project_name}/bin/:$PATH"; 
+"""
             )
+    if '.env' not in file:
+        file.append('.env')
+    if not any(f.startswith('config') for f in file):
+        file.append('config')
+        
+    for f in file:
+        normalized_path = os.path.normpath(f)
+        if not os.path.exists(normalized_path):
+            print(f"[Error] File or directory {normalized_path} does not exist. Quitting...")
+            sys.exit(1)
+
+        if os.path.isdir(normalized_path):
+            for root, _, files in os.walk(normalized_path):
+                for file_name in files:
+                    file_path = os.path.join(root, file_name)
+                    if is_binary_file(file_path):
+                        print(f"[Warning] Skipping binary file: {file_path}")
+                        continue
+                    encoded_content = base64_encode_file_content(file_path)
+                    # Make sure the directories exist in the startup script
+                    relative_dir = os.path.relpath(root, normalized_path)
+                    startup_script += f"mkdir -p '{relative_dir}'\n"
+                    escaped_f = file_path.replace("'", "'\\''")
+                    startup_script += f"echo '{encoded_content}' | base64 -d | tr -d '\\r' > '{escaped_f}' && echo >> '{escaped_f}'; \n"
+        else:
+            if is_binary_file(normalized_path):
+                print(f"[Warning] Skipping binary file: {normalized_path}")
+                continue
+            encoded_content = base64_encode_file_content(normalized_path)
+            escaped_f = normalized_path.replace("'", "'\\''")
+            startup_script += f"echo '{encoded_content}' | base64 -d | tr -d '\\r' > '{escaped_f}' && echo >> '{escaped_f}'; \n"
+
     if tolerations is None:
         if "tolerations" in settings:
             tolerations = settings["tolerations"]
@@ -298,8 +347,8 @@ def create_config(
         container = template["containers"][0]
         for entry in ["limits", "requests"]:
             container["resources"][entry]["nvidia.com/gpu"] = "1"
-            container["resources"][entry]["memory"] = "16G"
-            container["resources"][entry]["cpu"] = "8"
+            container["resources"][entry]["memory"] = "0G"
+            container["resources"][entry]["cpu"] = "0"
         config = {
             "apiVersion": "v1",
             "kind": "Pod",
