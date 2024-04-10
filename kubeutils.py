@@ -203,6 +203,8 @@ export PATH="{conda_home}/envs/{project_name}/bin/:$PATH";
         file.append('.env')
     if not any(f.startswith('config') for f in file):
         file.append('config')
+    if 'config/kube.yaml' not in file:
+        file.append('config/kube.yaml')
         
     for f in file:
         normalized_path = os.path.normpath(f)
@@ -220,7 +222,8 @@ export PATH="{conda_home}/envs/{project_name}/bin/:$PATH";
                     encoded_content = base64_encode_file_content(file_path)
                     # Make sure the directories exist in the startup script
                     relative_dir = os.path.relpath(root, normalized_path)
-                    startup_script += f"mkdir -p '{relative_dir}'\n"
+                    if relative_dir != ".":
+                        startup_script += f"mkdir -p '{relative_dir}'\n"
                     escaped_f = file_path.replace("'", "'\\''")
                     startup_script += f"echo '{encoded_content}' | base64 -d | tr -d '\\r' > '{escaped_f}' && echo >> '{escaped_f}'; \n"
         else:
