@@ -383,13 +383,15 @@ def batch(
                 hparam.update(model_configs[model]["hparam"])
             
             for config, hparam_dict in zip(*fill_val(model_configs[model], hparam)):
+                model_n = model.replace('_', '-').replace(' ', '-').replace('/', '-')
+                dataset_n = dataset.replace('_', '-').replace(' ', '-').replace('/', '-')
                 if "prefix" in settings:
                     if settings["prefix"] == "":
-                        name = f"{project_name}-{model}-{dataset}"
+                        name = f"{project_name}-{model_n}-{dataset_n}"
                     else:
-                        name = f"{settings['prefix']}-{project_name}-{model}-{dataset}"
+                        name = f"{settings['prefix']}-{project_name}-{model_n}-{dataset_n}"
                 else:
-                    name = f"{settings['user']}-{project_name}-{model}-{dataset}"
+                    name = f"{settings['user']}-{project_name}-{model_n}-{dataset_n}"
                 for key, value in hparam_dict.items():
                     if not key.startswith("_"):
                         name += f"-{key}-{value}"
