@@ -93,6 +93,7 @@ def create_config(
     user: str = None,
     image: str = None,
     image_pull_secrets: str = None,
+    prefix: str = None,
     
     ## Node config
     hostname_blacklist: List[str] = None,
@@ -114,6 +115,11 @@ def create_config(
             print(f"[Warning] Key {key}={value} is unknown. Ignoring it.")
     
     ## Initialization
+    if prefix is None:
+        name = f"{settings['user']}-{name}"
+    else:
+        if not prefix == "":
+            name = f"{prefix}-{name}"
     if namespace is None:
         namespace = settings["namespace"]
     if user is None:
@@ -434,13 +440,7 @@ def batch(
             for config, hparam_dict in zip(*fill_val(model_configs[model], hparam)):
                 model_n = model.replace('_', '-').replace(' ', '-').replace('/', '-')
                 dataset_n = dataset.replace('_', '-').replace(' ', '-').replace('/', '-')
-                if "prefix" in settings:
-                    if settings["prefix"] == "":
-                        name = f"{project_name}-{model_n}-{dataset_n}"
-                    else:
-                        name = f"{settings['prefix']}-{project_name}-{model_n}-{dataset_n}"
-                else:
-                    name = f"{settings['user']}-{project_name}-{model_n}-{dataset_n}"
+                name = f"{project_name}-{model_n}-{dataset_n}"
                 for key, value in hparam_dict.items():
                     if not key.startswith("_"):
                         name += f"-{key}-{value}"
@@ -460,7 +460,7 @@ def batch(
                         config_kwargs['env'] = kwargs['env']
                     
                     # Remove projectwise keys
-                    for key in ["project_name", "user", "namespace", "prefix"]:
+                    for key in ["project_name", "user", "namespace"]:
                         if key in config_kwargs:
                             print(f"[Warning] Key {key}={config_kwargs[key]} is not allowed in {name}. Ignoring it.")
                             del config_kwargs[key]
@@ -482,6 +482,7 @@ def batch(
                         project_name=project_name,
                         **config_kwargs
                     )
+                    name = config["metadata"]["name"]
                     yaml.Dumper.ignore_aliases = lambda *_: True
                     if not os.path.exists("build"):
                         os.makedirs("build")

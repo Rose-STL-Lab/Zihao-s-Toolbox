@@ -154,13 +154,7 @@ if __name__ == '__main__':
                     raise ValueError(f"Dataset '{launch_settings['run']['dataset']}' not found in dataset configuration")
 
     if config.mode == "pod":
-        if "prefix" in settings:
-            if settings["prefix"] == "":
-                name = f"{settings['project_name']}-interactive-pod"
-            else:
-                name = f"{settings['prefix']}-{settings['project_name']}-interactive-pod"
-        else:
-            name = f"{settings['user']}-{settings['project_name']}-interactive-pod"
+        name = f"{settings['project_name']}-interactive-pod"
         
         if "model" in launch_settings:
             del launch_settings["model"]

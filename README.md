@@ -193,7 +193,6 @@ Finally, run `make delete` to cleanup all workloads.
 project_name: str, required
 user: str, required
 namespace: str, required
-prefix: str  # Prefix of the names of your workloads, default to user
 
 ##### Other field, can be overwritten in launch.yaml #####
 
@@ -225,7 +224,8 @@ image: str
 registry_host: str
 ## If your image is private and your pull secret name does not default to <project-name>-read-registry
 image_pull_secrets: str
-
+## Prefix of the names of your workloads
+prefix: str
 ## Will tolerate no-schedule taints
 tolerations: 
   - <toleration-key>
