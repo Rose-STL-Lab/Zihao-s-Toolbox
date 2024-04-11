@@ -76,6 +76,7 @@ def create_config(
     command: str,
     gpu_count: int = 0,
     cpu_count: int = 0,
+    ephermal_storage: int = 0,
     memory: int = 0,
     env: dict = {},
     project_name: str = None,
@@ -276,12 +277,14 @@ export PATH="{conda_home}/envs/{project_name}/bin/:$PATH";
                     "limits": {
                         "nvidia.com/gpu": str(gpu_count),
                         "memory": f"{memory * 2}G",
-                        "cpu": str(cpu_count * 2)
+                        "cpu": str(cpu_count * 2),
+                        "ephemeral-storage": f"{ephermal_storage}G"
                     },
                     "requests": {
                         "nvidia.com/gpu": str(gpu_count),
                         "memory": f"{memory}G",
-                        "cpu": str(cpu_count)
+                        "cpu": str(cpu_count),
+                        "ephemeral-storage": f"{ephermal_storage}G"
                     }
                 },
                 "volumeMounts": [
