@@ -193,7 +193,8 @@ def create_config(
             
             startup_script = (
                 f"""mkdir -p config; 
-ssh-keyscan -t ecdsa -p {ssh_port} -H {ssh_host} > /root/.ssh/known_hosts; git fetch --all --prune; 
+ssh-keyscan github.com >> /root/.ssh/known_hosts;
+ssh-keyscan -t ecdsa -p {ssh_port} -H {ssh_host} > /root/.ssh/known_hosts;  git fetch --all --prune; 
 git reset --hard origin/$(git remote show origin | grep "HEAD branch" | cut -d" " -f5); 
 git submodule update --init --recursive; 
 echo "conda activate {project_name}" >> ~/.bashrc; 
