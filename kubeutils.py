@@ -251,6 +251,16 @@ export PATH="{conda_home}/envs/{project_name}/bin/:$PATH";
         env["PYTHONPATH"] += ":src"
     if "WANDB_MODE" in env:
         env["WANDB_MODE"] = "online"  # Always use online mode in the cluster
+    # Map the S3 endpoint to the internal endpoint
+    nautilus_s3_map = {
+        'https://s3-west.nrp-nautilus.io': 'http://rook-ceph-rgw-nautiluss3.rook',
+        'https://s3-central.nrp-nautilus.io': 'http://rook-ceph-rgw-centrals3.rook-central',
+        'https://s3-east.nrp-nautilus.io': 'http://rook-ceph-rgw-easts3.rook-east',
+        'https://s3-haosu.nrp-nautilus.io': 'http://rook-ceph-rgw-haosu.rook-haosu',
+        'https://s3-tide.nrp-nautilus.io': 'http://rook-ceph-rgw-tide.rook-tide'
+    }
+    if "S3_ENDPOINT_URL" in env and env["S3_ENDPOINT_URL"] in nautilus_s3_map:
+        env["S3_ENDPOINT_URL"] = nautilus_s3_map[env["S3_ENDPOINT_URL"]]
         
     env = [{'name': k, 'value': v} for k, v in env.items()]
     
