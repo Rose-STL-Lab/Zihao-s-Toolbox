@@ -198,6 +198,8 @@ git reset --hard origin/$(git remote show origin | grep "HEAD branch" | cut -d" 
 git submodule update --init --recursive; 
 echo "conda activate {project_name}" >> ~/.bashrc; 
 export PATH="{conda_home}/envs/{project_name}/bin/:$PATH"; 
+chmod +x src/toolbox/s3region.sh;
+. src/toolbox/s3region.sh;
 """
             )
     if '.env' not in file:

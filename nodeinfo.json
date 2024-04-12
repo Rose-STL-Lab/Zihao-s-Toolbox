@@ -1,0 +1,1110 @@
+{
+    "aarch64.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "alveo.sdsu.edu": {
+      "region": "us-west"
+    },
+    "bcdc-gw-40g-ps.gatech.edu": {
+      "region": "us-east"
+    },
+    "ceph-1.gpn.onenet.net": {
+      "region": "us-central"
+    },
+    "ceph00.nrp.hpc.udel.edu": {
+      "region": "us-east"
+    },
+    "clu-fiona2.ucmerced.edu": {
+      "region": "us-west"
+    },
+    "controller0.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "csusb-sci-103-11.csusb.edu": {
+      "region": "us-west"
+    },
+    "dtn-01.nrp.mghpcc.org": {
+      "region": "us-east"
+    },
+    "dtn-gpu2.kreonet.net": {
+      "region": "pacific"
+    },
+    "dtn-main.ucr.edu": {
+      "region": "us-west"
+    },
+    "dtn-pas.bois.net.internet2.edu": {
+      "region": "us-mountain"
+    },
+    "dtn-pas.cinc.net.internet2.edu": {
+      "region": "us-east"
+    },
+    "dtn-pas.denv.net.internet2.edu": {
+      "region": "us-mountain"
+    },
+    "dtn-pas.hous.net.internet2.edu": {
+      "region": "us-central"
+    },
+    "dtn-pas.jack.net.internet2.edu": {
+      "region": "us-east"
+    },
+    "dtn101.sl.startap.net": {
+      "region": "us-east"
+    },
+    "dtn108.sl.startap.net": {
+      "region": "us-east"
+    },
+    "dtn2-daejeon.kreonet.net": {
+      "region": "pacific"
+    },
+    "edex.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "epic001.clemson.edu": {
+      "region": "us-east"
+    },
+    "evldtn.evl.uic.edu": {
+      "region": "us-east"
+    },
+    "fiona-1.famu.edu": {
+      "region": "us-east"
+    },
+    "fiona-100g.ucsc.edu": {
+      "region": "us-west"
+    },
+    "fiona-dtn-1.calit2.uci.edu": {
+      "region": "us-west"
+    },
+    "fiona-dtn-1.ucsc.edu": {
+      "region": "us-west"
+    },
+    "fiona-prg1.cesnet.cz": {
+      "region": "eu"
+    },
+    "fiona-r-uva.vlan7.uvalight.net": {
+      "region": "eu"
+    },
+    "fiona.hpc.okstate.edu": {
+      "region": "us-central"
+    },
+    "fiona.its.hawaii.edu": {
+      "region": "pacific"
+    },
+    "fiona.nwsc.ucar.edu": {
+      "region": "us-mountain"
+    },
+    "fiona.offn.oscer.ou.edu": {
+      "region": "us-central"
+    },
+    "fiona.sdsu.edu": {
+      "region": "us-west"
+    },
+    "fiona.tools.ucla.net": {
+      "region": "us-west"
+    },
+    "fiona.ucsc.edu": {
+      "region": "us-west"
+    },
+    "fiona8-0.calit2.uci.edu": {
+      "region": "us-west"
+    },
+    "fiona8-1.calit2.uci.edu": {
+      "region": "us-west"
+    },
+    "fiona8.ucsc.edu": {
+      "region": "us-west"
+    },
+    "gdc-fiona-dtn.mren.org": {
+      "region": "us-east"
+    },
+    "gp-engine.beocat.ksu.edu": {
+      "region": "us-central"
+    },
+    "gpengine-uams.areon.net": {
+      "region": "us-central"
+    },
+    "gpengine-uark.areon.net": {
+      "region": "us-central"
+    },
+    "gpn-cisco1-nautilus.greatplains.net": {
+      "region": "us-central"
+    },
+    "gpn-cisco2-nautilus.greatplains.net": {
+      "region": "us-central"
+    },
+    "gpn-fiona-mizzou-1.rnet.missouri.edu": {
+      "region": "us-central"
+    },
+    "gpn-fiona-mizzou-2.rnet.missouri.edu": {
+      "region": "us-central"
+    },
+    "gpn-fiona-mizzou-3.rnet.missouri.edu": {
+      "region": "us-central"
+    },
+    "gpn-fiona-mizzou-4.rnet.missouri.edu": {
+      "region": "us-central"
+    },
+    "gpn-fiona-mizzou-5.rnet.missouri.edu": {
+      "region": "us-central"
+    },
+    "gpn-fiona-mizzou-6.rnet.missouri.edu": {
+      "region": "us-central"
+    },
+    "gpn-fiona-mizzou-7.rnet.missouri.edu": {
+      "region": "us-central"
+    },
+    "gpn-fiona-mizzou-8.rnet.missouri.edu": {
+      "region": "us-central"
+    },
+    "gpn-fiona-mizzou-9.rnet.missouri.edu": {
+      "region": "us-central"
+    },
+    "gpn-fiona-mizzou-gh1.rnet.missouri.edu": {
+      "region": "us-central"
+    },
+    "gpn-fiona-mizzou.rnet.missouri.edu": {
+      "region": "us-central"
+    },
+    "gpn-fiona.usd.edu": {
+      "region": "us-central"
+    },
+    "gpu-01.csusb.edu": {
+      "region": "us-west"
+    },
+    "gpu-01.nrp.mghpcc.org": {
+      "region": "us-east"
+    },
+    "gpu-02.nrp.mghpcc.org": {
+      "region": "us-east"
+    },
+    "gpu-03.nrp.mghpcc.org": {
+      "region": "us-east"
+    },
+    "gpu-04.nrp.mghpcc.org": {
+      "region": "us-east"
+    },
+    "gpu-05.nrp.mghpcc.org": {
+      "region": "us-east"
+    },
+    "gpu-06.nrp.mghpcc.org": {
+      "region": "us-east"
+    },
+    "gpu-07.nrp.mghpcc.org": {
+      "region": "us-east"
+    },
+    "gpu-08.nrp.mghpcc.org": {
+      "region": "us-east"
+    },
+    "gpu-09.nrp.mghpcc.org": {
+      "region": "us-east"
+    },
+    "gpu-10.nrp.mghpcc.org": {
+      "region": "us-east"
+    },
+    "gpu-11.nrp.mghpcc.org": {
+      "region": "us-east"
+    },
+    "gpu-12.nrp.mghpcc.org": {
+      "region": "us-east"
+    },
+    "gpu-13.nrp.mghpcc.org": {
+      "region": "us-east"
+    },
+    "gpu-14.nrp.mghpcc.org": {
+      "region": "us-east"
+    },
+    "gpu-15.nrp.mghpcc.org": {
+      "region": "us-east"
+    },
+    "gpu-16.nrp.mghpcc.org": {
+      "region": "us-east"
+    },
+    "gpu-17.nrp.mghpcc.org": {
+      "region": "us-east"
+    },
+    "gpu-18.nrp.mghpcc.org": {
+      "region": "us-east"
+    },
+    "hcc-chase-pki-c4012.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-chase-shor-c4705.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-chase-shor-c4709.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-chase-shor-c4715.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-chase-shor-c4719.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-gpengine-shor-c5303.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-gpn-argo-1.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-nrdstor-osdf.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-nrp-shor-c5805.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-nrp-shor-c5809.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-nrp-shor-c5813.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-nrp-shor-c5817.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-nrp-shor-c5821.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-nrp-shor-c5825.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-nrp-shor-c5830.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-nrp-shor-c5832.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-nrp-shor-c5905.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-nrp-shor-c5909.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-nrp-shor-c5913.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-nrp-shor-c5917.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-nrp-shor-c5921.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-nrp-shor-c5925.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-nrp-shor-c5930.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-nrp-shor-c6005.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-nrp-shor-c6009.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-nrp-shor-c6013.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-nrp-shor-c6017.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-nrp-shor-c6021.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-nrp-shor-c6025.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-nrp-shor-c6029.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-prp-c1312.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-prp-c5027.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-prp-c5036.unl.edu": {
+      "region": "us-central"
+    },
+    "hcc-prp-c5038.unl.edu": {
+      "region": "us-central"
+    },
+    "hydra.gi.ucsc.edu": {
+      "region": "us-west"
+    },
+    "igrok-chcg.pacificwave.net": {
+      "region": "us-central"
+    },
+    "igrok-la.cenic.net": {
+      "region": "us-west"
+    },
+    "igrok-mangilao.uog.edu": {
+      "region": "pacific"
+    },
+    "igrok-sttl.pacificwave.net": {
+      "region": "us-west"
+    },
+    "igrok-sunnyvale.cenic.net": {
+      "region": "us-west"
+    },
+    "jupyter.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-3090-01.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-3090-01.clemson.edu": {
+      "region": "us-east"
+    },
+    "k8s-3090-01.usd.edu": {
+      "region": "us-central"
+    },
+    "k8s-3090-02.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-3090-02.clemson.edu": {
+      "region": "us-east"
+    },
+    "k8s-4090-01.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-4090-02.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-a100-01.suncorridor.org": {
+      "region": "us-west"
+    },
+    "k8s-a40-01.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-a6000-01.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-a6000-01.unm.edu": {
+      "region": "us-mountain"
+    },
+    "k8s-altra-01.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-bf2-01.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-bharadia-01.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-bharadia-02.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-bharadia-03.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-bharadia-04.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-ceph-01.ampath.net": {
+      "region": "us-east"
+    },
+    "k8s-ceph-01.ultralight.org": {
+      "region": "us-west"
+    },
+    "k8s-ceph-02.ampath.net": {
+      "region": "us-east"
+    },
+    "k8s-chase-ci-01.noc.ucsb.edu": {
+      "region": "us-west"
+    },
+    "k8s-chase-ci-02.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-chase-ci-03.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-chase-ci-04.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-chase-ci-07.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-chase-ci-10.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-dtn-01.uog.edu": {
+      "region": "pacific"
+    },
+    "k8s-epyc-01.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-gen4-01.ampath.net": {
+      "region": "us-east"
+    },
+    "k8s-gen4-05.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-gen4-07.ultralight.org": {
+      "region": "us-west"
+    },
+    "k8s-gen4-sm.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-gpu-01.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-gpu-03.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-gpu-1.ucr.edu": {
+      "region": "us-west"
+    },
+    "k8s-gpu-1.ucsc.edu": {
+      "region": "us-west"
+    },
+    "k8s-gpu-2.ucr.edu": {
+      "region": "us-west"
+    },
+    "k8s-gpu-2.ucsc.edu": {
+      "region": "us-west"
+    },
+    "k8s-gpu-3.ucr.edu": {
+      "region": "us-west"
+    },
+    "k8s-gpu-3.ucsc.edu": {
+      "region": "us-west"
+    },
+    "k8s-gpu-4.ucsc.edu": {
+      "region": "us-west"
+    },
+    "k8s-gpu-5.ucsc.edu": {
+      "region": "us-west"
+    },
+    "k8s-haosu-02.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-03.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-04.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-05.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-06.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-07.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-09.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-10.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-11.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-12.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-15.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-16.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-17.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-18.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-19.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-20.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-21.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-22.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-23.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-24.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-25.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-26.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-27.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-28.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-haosu-29.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-igrok-01.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-igrok-02.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-igrok-03.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-igrok-04.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-igrok-05.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-igrok-06.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-nvme-01.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-nvme-01.ultralight.org": {
+      "region": "us-west"
+    },
+    "k8s-ravi-01.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-s-00.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-storage-1.ucr.edu": {
+      "region": "us-west"
+    },
+    "k8s-u200-00.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-usra-01.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "k8s-usra-02.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "knuron.calit2.optiputer.net": {
+      "region": "us-west"
+    },
+    "koastore-osdf.its.hawaii.edu": {
+      "region": "pacific"
+    },
+    "losa4-nrp-01--lax-agg10--100g--01.cenic.net": {
+      "region": "us-west"
+    },
+    "mdf-poc.aglt2.org": {
+      "region": "us-east"
+    },
+    "moff.sdstate.edu": {
+      "region": "us-central"
+    },
+    "msu-nrp.aglt2.org": {
+      "region": "us-east"
+    },
+    "nautilus01.hsrn.nyu.edu": {
+      "region": "us-east"
+    },
+    "nautilus02.hsrn.nyu.edu": {
+      "region": "us-east"
+    },
+    "nautilus03.hsrn.nyu.edu": {
+      "region": "us-east"
+    },
+    "nautilus04.hsrn.nyu.edu": {
+      "region": "us-east"
+    },
+    "nautilus1.hpc.uark.edu": {
+      "region": "us-central"
+    },
+    "nautilus1.sox.net": {
+      "region": "us-east"
+    },
+    "nautilus2.sox.net": {
+      "region": "us-east"
+    },
+    "nautilusg01.sci.cwru.edu": {
+      "region": "us-east"
+    },
+    "nautilusg02.sci.cwru.edu": {
+      "region": "us-east"
+    },
+    "ncar-osdf01.hpc.ucar.edu": {
+      "region": "us-mountain"
+    },
+    "netw-fiona-ucsf.stanford.edu": {
+      "region": "us-west"
+    },
+    "netw-fiona.stanford.edu": {
+      "region": "us-west"
+    },
+    "node-1-1.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "node-1-2.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "node-1-3.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "node-1-4.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "node-1-5.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "node-1-6.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "node-2-1.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "node-2-10.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "node-2-11.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "node-2-12.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "node-2-2.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "node-2-3.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "node-2-4.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "node-2-5.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "node-2-6.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "node-2-7.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "node-2-8.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "node-2-9.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "node-3-5.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "node-3-6.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "nrp-c10.nysernet.org": {
+      "region": "us-east"
+    },
+    "nrp-c11.nysernet.org": {
+      "region": "us-east"
+    },
+    "nrp-c12.nysernet.org": {
+      "region": "us-east"
+    },
+    "nrp-c14.nysernet.org": {
+      "region": "us-east"
+    },
+    "nrp-c15.nysernet.org": {
+      "region": "us-east"
+    },
+    "nrp-c16.nysernet.org": {
+      "region": "us-east"
+    },
+    "nrp-c17.nysernet.org": {
+      "region": "us-east"
+    },
+    "nrp-c3.nysernet.org": {
+      "region": "us-east"
+    },
+    "nrp-c4.nysernet.org": {
+      "region": "us-east"
+    },
+    "nrp-c6.nysernet.org": {
+      "region": "us-east"
+    },
+    "nrp-c7.nysernet.org": {
+      "region": "us-east"
+    },
+    "nrp-fiona-001.sdmz.amnh.org": {
+      "region": "us-east"
+    },
+    "nrp-g1.nysernet.org": {
+      "region": "us-east"
+    },
+    "nrp-s1.acsu.buffalo.edu": {
+      "region": "us-east"
+    },
+    "nrp-s1.nysernet.org": {
+      "region": "us-east"
+    },
+    "nrp0.njedge.net": {
+      "region": "us-east"
+    },
+    "osdftest.t2.ucsd.edu": {
+      "region": "us-west"
+    },
+    "osg-houston-stashcache.nrp.internet2.edu": {
+      "region": "us-central"
+    },
+    "osg-sunnyvale-stashcache.nrp.internet2.edu": {
+      "region": "us-west"
+    },
+    "osg.chic.nrp.internet2.edu": {
+      "region": "us-east"
+    },
+    "osg.kans.nrp.internet2.edu": {
+      "region": "us-central"
+    },
+    "osg.newy32aoa.nrp.internet2.edu": {
+      "region": "us-east"
+    },
+    "perfsonar.csusb.edu": {
+      "region": "us-west"
+    },
+    "perfsonar.uog.edu": {
+      "region": "pacific"
+    },
+    "prism-01.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "prism-02.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "prp-dtn.noc.ucsb.edu": {
+      "region": "us-west"
+    },
+    "prp-perfsonar-1.ucsc.edu": {
+      "region": "us-west"
+    },
+    "prp01.ifa.hawaii.edu": {
+      "region": "pacific"
+    },
+    "ps-100g-scidmz-0.tools.ucla.net": {
+      "region": "us-west"
+    },
+    "ps-100g.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-nrp-cpu-01.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-nrp-cpu-02.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-nrp-cpu-03.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-nrp-cpu-04.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-nrp-dtn-01.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-nrp-dtn-02.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-nrp-dtn-03.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-nrp-gpu-01.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-nrp-gpu-02.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-nrp-gpu-03.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-nrp-gpu-04.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-nrp-gpu-05.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-nrp-gpu-06.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-nrp-gpu-07.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-nrp-gpu-08.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-cpu-01.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-cpu-02.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-cpu-03.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-cpu-04.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-cpu-05.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-cpu-06.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-dtn-01.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-dtn-02.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-dtn-03.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-gpu-01.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-gpu-02.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-gpu-03.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-gpu-04.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-gpu-05.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-gpu-06.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-gpu-07.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-gpu-08.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-gpu-09.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-gpu-10.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-gpu-11.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-gpu-12.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-gpu-13.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-gpu-14.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-gpu-15.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-gpu-16.sdsu.edu": {
+      "region": "us-west"
+    },
+    "rci-tide-gpu-17.sdsu.edu": {
+      "region": "us-west"
+    },
+    "regional-prp-ceph.beocat.ksu.edu": {
+      "region": "us-central"
+    },
+    "rich-gw-40g-ps.gatech.edu": {
+      "region": "us-east"
+    },
+    "rincewind.crbs.ucsd.edu": {
+      "region": "us-west"
+    },
+    "ry-gpu-01.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "ry-gpu-02.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "ry-gpu-03.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "ry-gpu-04.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "ry-gpu-05.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "ry-gpu-06.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "ry-gpu-07.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "ry-gpu-08.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "ry-gpu-09.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "ry-gpu-10.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "ry-gpu-11.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "ry-gpu-12.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "ry-gpu-13.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "ry-gpu-14.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "ry-gpu-15.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "ry-gpu-16.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "ry-storage-01.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "ry-storage-02.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "ry-storage-03.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "ry-storage-04.sdsc.optiputer.net": {
+      "region": "us-west"
+    },
+    "sdmz-dtn.sox.net": {
+      "region": "us-east"
+    },
+    "sdsmt-fiona.sdsmt.edu": {
+      "region": "us-central"
+    },
+    "seaweed-dtn100-1.ucsc.edu": {
+      "region": "us-west"
+    },
+    "service-02.nrp.mghpcc.org": {
+      "region": "us-east"
+    },
+    "siderea.ucsc.edu": {
+      "region": "us-west"
+    },
+    "singapore.nationalresearchplatform.org": {
+      "region": "pacific"
+    },
+    "stashcache.gravity.cf.ac.uk": {
+      "region": "eu"
+    },
+    "stashcache.t2.ucsd.edu": {
+      "region": "us-west"
+    },
+    "storage-01.nrp.mghpcc.org": {
+      "region": "us-east"
+    },
+    "suncave-0": {
+      "region": "us-west"
+    },
+    "suncave-1": {
+      "region": "us-west"
+    },
+    "suncave-10": {
+      "region": "us-west"
+    },
+    "suncave-11": {
+      "region": "us-west"
+    },
+    "suncave-12": {
+      "region": "us-west"
+    },
+    "suncave-13": {
+      "region": "us-west"
+    },
+    "suncave-14": {
+      "region": "us-west"
+    },
+    "suncave-15": {
+      "region": "us-west"
+    },
+    "suncave-16": {
+      "region": "us-west"
+    },
+    "suncave-17": {
+      "region": "us-west"
+    },
+    "suncave-2": {
+      "region": "us-west"
+    },
+    "suncave-3": {
+      "region": "us-west"
+    },
+    "suncave-4": {
+      "region": "us-west"
+    },
+    "suncave-5": {
+      "region": "us-west"
+    },
+    "suncave-6": {
+      "region": "us-west"
+    },
+    "suncave-7": {
+      "region": "us-west"
+    },
+    "suncave-8": {
+      "region": "us-west"
+    },
+    "suncave-9": {
+      "region": "us-west"
+    },
+    "suncave-head": {
+      "region": "us-west"
+    },
+    "swosu-brandy.offn.onenet.net": {
+      "region": "us-central"
+    },
+    "ucm-fiona01.ucmerced.edu": {
+      "region": "us-west"
+    },
+    "uicnrp-fiona.evl.uic.edu": {
+      "region": "us-east"
+    },
+    "uicnrp-fiona2.evl.uic.edu": {
+      "region": "us-east"
+    },
+    "uicnrp01.evl.uic.edu": {
+      "region": "us-east"
+    },
+    "uicnrp02.evl.uic.edu": {
+      "region": "us-east"
+    },
+    "unseenu.crbs.ucsd.edu": {
+      "region": "us-west"
+    },
+    "v100-cc-star-01.noc.ucsb.edu": {
+      "region": "us-west"
+    },
+    "venadi.ucsc.edu": {
+      "region": "us-west"
+    },
+    "xcache-10.t2.ucsd.edu": {
+      "region": "us-west"
+    },
+    "xcache-11.t2.ucsd.edu": {
+      "region": "us-west"
+    }
+  }
+  
