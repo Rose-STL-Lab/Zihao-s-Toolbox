@@ -305,6 +305,12 @@ export PATH="{conda_home}/envs/{project_name}/bin/:$PATH";
                 "env": [
                     {"name": "PYTHONUNBUFFERED", "value": "1"},
                     {"name": "PYTHONIOENCODING", "value": "UTF-8"},
+                    {
+                        "name": "NODE_NAME",
+                        "valueFrom": {
+                            "fieldRef": {"fieldPath": "spec.nodeName"}
+                        }
+                    },
                     *env
                 ]
             }
