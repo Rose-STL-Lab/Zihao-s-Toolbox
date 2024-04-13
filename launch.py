@@ -1,4 +1,4 @@
-from toolbox.kubeutils import create_config, batch, settings
+from toolbox.kubeutils import create_config, batch, settings, file_to_script
 from toolbox.utils import load_env_file
 import yaml
 import argparse
@@ -11,6 +11,15 @@ import subprocess
 def is_generic_type(tp):
     """Check if the type is a generic type from the `typing` module."""
     return get_origin(tp) is not None
+
+
+def modify_pod_name(pod_name):
+    """Modify the pod name by incrementing a numeric suffix."""
+    if '-' in pod_name:
+        base_name, number = pod_name.rsplit('-', 1)
+        if number.isdigit():
+            return f"{base_name}-{int(number)+1}"
+    return f"{pod_name}-1"  # Default case if no numeric suffix exists
 
 
 def check_type(key, value, expected_type):
@@ -161,7 +170,8 @@ def check_pod_exists(pod_name, namespace):
 if __name__ == '__main__':
     arg = argparse.ArgumentParser()
     arg.add_argument("--mode", type=str, default="job")
-    config = arg.parse_args()
+    arg.add_argument("--pod_name", type=str, default=None)
+    args = arg.parse_args()
 
     with open("config/launch.yaml", "r") as f:
         launch_settings = yaml.safe_load(f)
@@ -182,7 +192,8 @@ if __name__ == '__main__':
                 if dataset not in launch_settings['dataset']:
                     raise ValueError(f"Dataset '{launch_settings['run']['dataset']}' not found in dataset configuration")
 
-    if config.mode == "pod":
+    mode = args.mode
+    if mode == "pod" or mode == "copy_files":
         name = f"{settings['project_name']}-interactive-pod"
         
         if "model" in launch_settings:
@@ -201,19 +212,33 @@ if __name__ == '__main__':
         )
         yaml.Dumper.ignore_aliases = lambda *_: True
         
-        pod_name = config['metadata']['name']
-        if check_pod_exists(pod_name, settings['namespace']):
-            print(f"Pod '{pod_name}' already exists. Modifying the name to avoid conflicts.")
-            counter = 1  # Start numbering from 1
-            modified_pod_name = f"{pod_name}-{counter}"  # Initial modified name
-            while check_pod_exists(modified_pod_name, settings['namespace']):
-                counter += 1  # Increment counter
-                modified_pod_name = f"{pod_name}-{counter}"
-            print(f"Appended '-{counter}' to original pod name to avoid naming conflicts.")
-            config['metadata']['name'] = modified_pod_name
-        with open(f"build/{name}.yaml", "w") as f:
-            yaml.dump(config, f)
-        os.system(f"kubectl apply -f build/{name}.yaml")
+        if args.pod_name is not None:
+            pod_name = args.pod_name
+        else:
+            pod_name = config['metadata']['name']
+            
+        if mode == "copy_files":
+            if check_pod_exists(pod_name, settings['namespace']):
+                script = " && ".join(file_to_script(launch_settings['file']))
+                command_to_run = f"kubectl exec -n {settings['namespace']} {pod_name} -- /bin/bash -c \"{script}\""
+                # Execute the command using os.system
+                if os.system(command_to_run) != 0:  # os.system returns 0 if successful
+                    print(f"Failed to copy files to pod {pod_name}.")
+                else:
+                    print(f"Files copied successfully to {pod_name}.")
+                    exit(0)
+            else:
+                raise ValueError("Cannot copy files without a pod.")
+        
+        elif mode == "pod":
+            # Handle pod creation
+            while check_pod_exists(pod_name, settings['namespace']):
+                print(f"Pod '{pod_name}' already exists. Modifying the name to avoid conflicts.")
+                pod_name = modify_pod_name(pod_name)
+            config['metadata']['name'] = pod_name
+            with open(f"build/{name}.yaml", "w") as f:
+                yaml.dump(config, f)
+            os.system(f"kubectl apply -f build/{name}.yaml")
     else:
         if 'run' in launch_settings:
             run_configs = launch_settings['run']
@@ -228,6 +253,6 @@ if __name__ == '__main__':
             dataset_configs=launch_settings['dataset'],
             model_configs=launch_settings['model'],
             env=load_env_file(),
-            mode=config.mode,
+            mode=mode,
             **launch_settings
         )

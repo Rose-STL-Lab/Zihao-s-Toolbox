@@ -37,6 +37,39 @@ def is_binary_file(file_path):
         print(f"[Error] Could not read file {file_path}: {e}")
         return True
     
+    
+# Create script to copy files
+def file_to_script(file):
+    file_copy_script = []
+    for f in file:
+        normalized_path = os.path.normpath(f)
+        if not os.path.exists(normalized_path):
+            print(f"[Error] File or directory {normalized_path} does not exist. Quitting...")
+            sys.exit(1)
+
+        if os.path.isdir(normalized_path):
+            for root, _, files in os.walk(normalized_path):
+                for file_name in files:
+                    file_path = os.path.join(root, file_name)
+                    if is_binary_file(file_path):
+                        print(f"[Warning] Skipping binary file: {file_path}")
+                        continue
+                    encoded_content = base64_encode_file_content(file_path)
+                    # Make sure the directories exist in the startup script
+                    relative_dir = os.path.relpath(root, normalized_path)
+                    if relative_dir != ".":
+                        file_copy_script.append(f"mkdir -p '{relative_dir}' ")
+                    escaped_f = file_path.replace("'", "'\\''")
+                    file_copy_script.append(f"echo '{encoded_content}' | base64 -d | tr -d '\\r' > '{escaped_f}' && echo >> '{escaped_f}' ")
+        else:
+            if is_binary_file(normalized_path):
+                print(f"[Warning] Skipping binary file: {normalized_path}")
+                continue
+            encoded_content = base64_encode_file_content(normalized_path)
+            escaped_f = normalized_path.replace("'", "'\\''")
+            file_copy_script.append(f"echo '{encoded_content}' | base64 -d | tr -d '\\r' > '{escaped_f}' && echo >> '{escaped_f}' ")
+    return file_copy_script
+    
 
 def check_job_status(name):
     # Get the job information in JSON format
@@ -190,33 +223,7 @@ source src/toolbox/s3region.sh
     if 'config/kube.yaml' not in file:
         file.append('config/kube.yaml')
         
-    for f in file:
-        normalized_path = os.path.normpath(f)
-        if not os.path.exists(normalized_path):
-            print(f"[Error] File or directory {normalized_path} does not exist. Quitting...")
-            sys.exit(1)
-
-        if os.path.isdir(normalized_path):
-            for root, _, files in os.walk(normalized_path):
-                for file_name in files:
-                    file_path = os.path.join(root, file_name)
-                    if is_binary_file(file_path):
-                        print(f"[Warning] Skipping binary file: {file_path}")
-                        continue
-                    encoded_content = base64_encode_file_content(file_path)
-                    # Make sure the directories exist in the startup script
-                    relative_dir = os.path.relpath(root, normalized_path)
-                    if relative_dir != ".":
-                        startup_script += f"mkdir -p '{relative_dir}'\n"
-                    escaped_f = file_path.replace("'", "'\\''")
-                    startup_script += f"echo '{encoded_content}' | base64 -d | tr -d '\\r' > '{escaped_f}' && echo >> '{escaped_f}' \n"
-        else:
-            if is_binary_file(normalized_path):
-                print(f"[Warning] Skipping binary file: {normalized_path}")
-                continue
-            encoded_content = base64_encode_file_content(normalized_path)
-            escaped_f = normalized_path.replace("'", "'\\''")
-            startup_script += f"echo '{encoded_content}' | base64 -d | tr -d '\\r' > '{escaped_f}' && echo >> '{escaped_f}' \n"
+    startup_script += "\n".join(file_to_script(file))
     startup_encoding = base64.b64encode(bytes(startup_script, 'utf-8')).decode('utf-8')
     load_startup_script = f"echo {startup_encoding} | base64 -d > startup.sh && chmod +x startup.sh && source startup.sh; "
 

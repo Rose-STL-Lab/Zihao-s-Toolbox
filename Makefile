@@ -84,20 +84,31 @@ define launch_command
 			conda activate $(PROJECT_NAME) --no-stack; \
 		fi; \
 	fi; \
-	python launch.py --mode $(1)
+	python launch.py $(1)
 endef
 
 local: kube
-	$(call launch_command,local)
+	$(call launch_command,--mode local)
 
 job: kube
-	$(call launch_command,job)
+	$(call launch_command,--mode job)
 
 pod: kube
-	$(call launch_command,pod)
+ifdef pod_name
+	$(call launch_command,--mode pod --pod_name $(pod_name))
+else
+	$(call launch_command,--mode pod)
+endif
 
 dryrun: kube
-	$(call launch_command,dryrun)
+	$(call launch_command,--mode dryrun)
+
+copy_files: kube
+ifdef pod_name
+	$(call launch_command,--mode copy_files --pod_name $(pod_name))
+else
+	$(call launch_command,--mode copy_files)
+endif
 
 delete_job:
 	@echo "You are going to delete the following jobs:"
