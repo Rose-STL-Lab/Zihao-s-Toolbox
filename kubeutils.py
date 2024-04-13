@@ -181,7 +181,6 @@ echo "conda activate {project_name}; source src/toolbox/s3region.sh" >> ~/.bashr
 export PATH="{conda_home}/envs/{project_name}/bin/:$PATH"
 chmod +x src/toolbox/s3region.sh
 source src/toolbox/s3region.sh
-echo $S3_ENDPOINT_URL > example.txt
 """
             )
     if '.env' not in file:
