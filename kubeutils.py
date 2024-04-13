@@ -155,8 +155,6 @@ def create_config(
     if startup_script is None:
         if "startup_script" in settings:
             startup_script = settings["startup_script"]
-            if not startup_script.endswith(";"):
-                startup_script += ";"
         else:
             if "conda_home" in settings:
                 conda_home = settings['conda_home']
@@ -171,36 +169,18 @@ def create_config(
                 else:
                     raise ValueError(("[Error] ssh_host and ssh_port are required fields in kube.yaml "
                                       "if startup_script undefined"))
-            
-            # Add the commands to regenerate the config files
-            commands = ''
-            for root, _, files in os.walk('config'):
-                for file_name in files:
-                    # Construct the full file path
-                    file_path = os.path.join(root, file_name)
-                    # Base64 encode the file content
-                    encoded_content = base64_encode_file_content(file_path)
-                    file_name = file_name.replace("'", "'\\''")
-                    # Generate the command
-                    command = f"echo {encoded_content} | base64 -d | tr -d '\\r' > config/{file_name} && echo >> config/{file_name}; \n"
-                    # Print the command
-                    commands += command
-            
-            if os.path.exists('.env'):
-                file_path = '.env'
-                encoded_content = base64_encode_file_content(file_path)
-                commands += f"echo {encoded_content} | base64 -d | tr -d '\\r' > .env && echo >> .env; \n"
-            
             startup_script = (
-                f"""mkdir -p config; 
-ssh-keyscan github.com >> /root/.ssh/known_hosts;
-ssh-keyscan -t ecdsa -p {ssh_port} -H {ssh_host} > /root/.ssh/known_hosts;  git fetch --all --prune; 
-git reset --hard origin/$(git remote show origin | grep "HEAD branch" | cut -d" " -f5); 
-git submodule update --init --recursive; 
-echo "conda activate {project_name}" >> ~/.bashrc; 
-export PATH="{conda_home}/envs/{project_name}/bin/:$PATH"; 
-chmod +x src/toolbox/s3region.sh;
-. src/toolbox/s3region.sh;
+                f"""#!/bin/bash
+mkdir -p config
+ssh-keyscan github.com >> /root/.ssh/known_hosts
+ssh-keyscan -t ecdsa -p {ssh_port} -H {ssh_host} >> /root/.ssh/known_hosts
+git pull
+git submodule update --init --recursive
+echo "conda activate {project_name}; source src/toolbox/s3region.sh" >> ~/.bashrc
+export PATH="{conda_home}/envs/{project_name}/bin/:$PATH"
+chmod +x src/toolbox/s3region.sh
+source src/toolbox/s3region.sh
+echo $S3_ENDPOINT_URL > example.txt
 """
             )
     if '.env' not in file:
@@ -229,14 +209,16 @@ chmod +x src/toolbox/s3region.sh;
                     if relative_dir != ".":
                         startup_script += f"mkdir -p '{relative_dir}'\n"
                     escaped_f = file_path.replace("'", "'\\''")
-                    startup_script += f"echo '{encoded_content}' | base64 -d | tr -d '\\r' > '{escaped_f}' && echo >> '{escaped_f}'; \n"
+                    startup_script += f"echo '{encoded_content}' | base64 -d | tr -d '\\r' > '{escaped_f}' && echo >> '{escaped_f}' \n"
         else:
             if is_binary_file(normalized_path):
                 print(f"[Warning] Skipping binary file: {normalized_path}")
                 continue
             encoded_content = base64_encode_file_content(normalized_path)
             escaped_f = normalized_path.replace("'", "'\\''")
-            startup_script += f"echo '{encoded_content}' | base64 -d | tr -d '\\r' > '{escaped_f}' && echo >> '{escaped_f}'; \n"
+            startup_script += f"echo '{encoded_content}' | base64 -d | tr -d '\\r' > '{escaped_f}' && echo >> '{escaped_f}' \n"
+    startup_encoding = base64.b64encode(bytes(startup_script, 'utf-8')).decode('utf-8')
+    load_startup_script = f"echo {startup_encoding} | base64 -d > startup.sh && chmod +x startup.sh && source startup.sh; "
 
     if tolerations is None:
         if "tolerations" in settings:
@@ -262,8 +244,9 @@ chmod +x src/toolbox/s3region.sh;
         'https://s3-haosu.nrp-nautilus.io': 'http://rook-ceph-rgw-haosu.rook-haosu',
         'https://s3-tide.nrp-nautilus.io': 'http://rook-ceph-rgw-tide.rook-tide'
     }
-    if "S3_ENDPOINT_URL" in env and env["S3_ENDPOINT_URL"] in nautilus_s3_map:
-        env["S3_ENDPOINT_URL"] = nautilus_s3_map[env["S3_ENDPOINT_URL"]]
+    for env_key in env:
+        if env[env_key] in nautilus_s3_map:
+            env[env_key] = nautilus_s3_map[env[env_key]]
         
     env = [{'name': k, 'value': v} for k, v in env.items()]
     
@@ -284,7 +267,7 @@ chmod +x src/toolbox/s3region.sh;
                     project_name, 
                     "/bin/bash", 
                     "-c", 
-                    ((startup_script + server_command) if interactive else (startup_script + command))
+                    ((load_startup_script + server_command) if interactive else (load_startup_script + command))
                 ],
                 "resources": {
                     "limits": {
