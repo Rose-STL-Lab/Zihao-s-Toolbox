@@ -5,6 +5,7 @@ import argparse
 import os
 import inspect
 from typing import get_type_hints, get_origin, get_args, Dict, List, Any, Union
+import subprocess
 
 
 def is_generic_type(tp):
@@ -129,6 +130,34 @@ def validate_launch_settings(launch_settings, create_config_signature):
                     check_key(param_name, entry, expected_type, required=False, header=f'{name}, optional')
 
 
+def check_pod_exists(pod_name, namespace):
+    # Construct the command to get the specific pod by name
+    cmd = [
+        "kubectl", "get", "pod", pod_name, 
+        "--namespace=" + namespace,
+        "-o=json"
+    ]
+
+    # Execute the command
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
+    )
+
+    # Check if the command executed successfully
+    if result.returncode == 0:
+        # Successfully got data for pod, meaning pod exists
+        return True
+    elif "NotFound" in result.stderr:
+        # Pod does not exist
+        return False
+    else:
+        # An error occurred, which is not related to the non-existence of the pod
+        raise Exception(f"Error querying kubectl: {result.stderr}")
+
+
 if __name__ == '__main__':
     arg = argparse.ArgumentParser()
     arg.add_argument("--mode", type=str, default="job")
@@ -171,6 +200,17 @@ if __name__ == '__main__':
             **launch_settings
         )
         yaml.Dumper.ignore_aliases = lambda *_: True
+        
+        pod_name = config['metadata']['name']
+        if check_pod_exists(pod_name, settings['namespace']):
+            print(f"Pod '{pod_name}' already exists. Modifying the name to avoid conflicts.")
+            counter = 1  # Start numbering from 1
+            modified_pod_name = f"{pod_name}-{counter}"  # Initial modified name
+            while check_pod_exists(modified_pod_name, settings['namespace']):
+                counter += 1  # Increment counter
+                modified_pod_name = f"{pod_name}-{counter}"
+            print(f"Appended '-{counter}' to original pod name to avoid naming conflicts.")
+            config['metadata']['name'] = modified_pod_name
         with open(f"build/{name}.yaml", "w") as f:
             yaml.dump(config, f)
         os.system(f"kubectl apply -f build/{name}.yaml")
