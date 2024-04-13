@@ -9,6 +9,7 @@ from typing import List
 import os
 import base64
 import sys
+import re
 
 
 with open("config/kube.yaml", "r") as f:
@@ -254,6 +255,8 @@ echo $S3_ENDPOINT_URL > example.txt
         "namespace": namespace,
         "labels": {"user": user, "project": project_name}
     }
+    
+    command = re.sub(r'\[(.*?)\]\((.*?)\)', r'\2', command)
 
     template = {
         "containers": [
@@ -477,6 +480,7 @@ def batch(
                         if "local_command" in config_kwargs:
                             model_configs[model]['command'] = model_configs[model]['local_command']
                         command = fill_val({'_': model_configs[model]['command']}, hparam_dict)[0][0]['_']
+                        command = re.sub(r'\[(.*?)\]\(.*?\)', r'\1', command)
                         command = 'export $(cat .env | xargs) && ' + command
                         print(f"Running {hparam_dict} ... > {command}")
                         os.system(command)
