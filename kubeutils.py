@@ -468,7 +468,14 @@ def batch(
                     if "hparam" in run_configs and "hparam" in config:
                         del config["hparam"]
                     
-                    config_kwargs = deepcopy(kwargs['model'][model])
+                    config_kwargs = deepcopy(kwargs)
+                    if 'model' in config_kwargs:
+                        del config_kwargs['model']
+                    if 'dataset' in config_kwargs:
+                        del config_kwargs['dataset']
+                    if 'run' in config_kwargs:
+                        del config_kwargs['run']
+                    config_kwargs.update(kwargs['model'][model])
                     config_kwargs.update(kwargs['dataset'][dataset])
                     config_kwargs.update(config)
                     if 'env' in config_kwargs:
