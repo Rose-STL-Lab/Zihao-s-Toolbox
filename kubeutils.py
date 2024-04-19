@@ -412,17 +412,52 @@ def fill_val_helper(config, key, value):
 
 def fill_val(original_config, vals):
     # Main function to replace all values and return a list of configs
-    for key, value in vals.items():
-        if type(value) is not list:
+    keys = list(vals.keys())
+    vals_copy = copy.deepcopy(vals)
+    vals = {}
+    for key, value in vals_copy.items():
+        if type(value) is dict:
+            new_value = []
+            key_idx = keys.index(key)
+            prev_keys = None
+            for k, v in value.items():
+                new_value.append({k: v})
+                assert type(v) is dict
+                if prev_keys:
+                    assert prev_keys == v.keys()
+                else:
+                    prev_keys = v.keys()
+                    for k_ in v.keys():
+                        key_idx += 1
+                        keys.insert(key_idx, k_)
+            vals[key] = new_value
+        elif type(value) is not list:
             vals[key] = [value]
+        else:
+            vals[key] = value
     val_combination = list(itertools.product(*vals.values()))
+    val_combination_copy = copy.deepcopy(val_combination)
+    val_combination = []
+    for combination in val_combination_copy:
+        assert type(combination) is tuple
+        new_combination = []
+        for val in combination:
+            if type(val) is dict:
+                assert len(val) == 1
+                for k, v in val.items():
+                    assert type(v) is dict
+                    new_combination.append(k)
+                    new_combination.extend(v.values())
+            else:
+                new_combination.append(val)
+        val_combination.append(new_combination)
     configs = []
     for combination in val_combination:
         new_config = copy.deepcopy(original_config)
-        for key, value in zip(vals.keys(), combination):
+        for key, value in zip(keys, combination):
             fill_val_helper(new_config, key, value)
         configs.append(new_config)
-    val_combination = [dict(zip(vals.keys(), combination)) for combination in val_combination]
+    val_combination = [dict(zip(keys, combination)) for combination in val_combination]
     return configs, val_combination
 
 

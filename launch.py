@@ -96,13 +96,13 @@ def validate_launch_settings(launch_settings, create_config_signature):
             'target': launch_settings['model'],
             'required': ['command'],
             'extra': {
-                'hparam': Dict[str, Union[str, List[str]]]
+                'hparam': Dict[str, Union[str, List[str], Dict[str, Dict]]]
             }
         },
         'dataset': {
             'target': launch_settings['dataset'],
             'extra': {
-                'hparam': Dict[str, Union[str, List[str]]]
+                'hparam': Dict[str, Union[str, List[str], Dict[str, Dict]]]
             }
         },
         'global': {
@@ -110,7 +110,7 @@ def validate_launch_settings(launch_settings, create_config_signature):
             'extra': {
                 'model': Dict[str, Any],
                 'dataset': Dict[str, Any],
-                'run': Dict[str, List[str]]
+                'run': Dict[str, Union[List[str], Dict[str, str]]]
             }
         }
     }.items():
@@ -183,7 +183,7 @@ if __name__ == '__main__':
         # Perform typechecks
         validate_launch_settings(launch_settings, create_config_signature)
         for key in launch_settings['run']:
-            if key not in ['model', 'dataset']:
+            if key not in ['model', 'dataset', 'hparam']:
                 raise ValueError(f"Unknown key '{key}' in run configuration")
             for model in launch_settings['run']['model']:
                 if model not in launch_settings['model']:
