@@ -1,0 +1,93 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - '**'
+    paths:
+      - '.github/workflows/docker.yml'
+      - '.gitmodules'
+      - 'Dockerfile'
+      - 'poetry.lock'
+      - 'pyproject.toml'
+      - 'conda-lock.yml'
+
+jobs:
+  build-and-push-job:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    timeout-minutes: 600
+
+    steps:
+    - name: Maximize build space
+      uses: AdityaGarg8/remove-unwanted-software@v2
+      with:
+        remove-dotnet: 'true'
+        remove-android: 'true'
+        remove-haskell: 'true'
+        remove-codeql: 'true'
+        remove-docker-images: 'true'
+
+    - name: Checkout Code
+      uses: actions/checkout@v3
+    
+    - name: Set the Project name and SSH URL
+      run: |
+        origin_url=$(git remote get-url origin)
+        if [[ "$origin_url" == git@github.com* ]]; then
+          echo "Origin is already an SSH URL: $origin_url"
+          PROJECT_SSH_URL="$origin_url"
+        elif [[ "$origin_url" == http* ]]; then
+          echo "Origin is an HTTP URL, converting: $origin_url"
+          temp_url="${origin_url#http*://github.com/}"
+          temp_url="${temp_url%.git}"
+          PROJECT_SSH_URL="git@github.com:${temp_url}.git"
+        else
+          echo "Origin URL is neither SSH nor HTTP, exiting..."
+          exit 1
+        fi
+        echo "PROJECT_SSH_URL=$PROJECT_SSH_URL" >> $GITHUB_ENV
+        echo "PROJECT_SSH_URL=$PROJECT_SSH_URL"
+        
+        # Extract the project name from the SSH URL
+        if [[ "$PROJECT_SSH_URL" =~ git@github.com:.*/(.*).git ]]; then
+          PROJECT_NAME="${BASH_REMATCH[1]}"
+          echo "PROJECT_NAME=$PROJECT_NAME" >> $GITHUB_ENV
+          echo "PROJECT_NAME=$PROJECT_NAME"
+        else
+          echo "Failed to extract PROJECT_NAME from $PROJECT_SSH_URL"
+          exit 1
+        fi
+
+    - name: Login to Docker Registry
+      run: docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+      env:
+        CI_REGISTRY: gitlab-registry.nrp-nautilus.io
+        CI_REGISTRY_USER: ${{ secrets.DOCKER_USERNAME }}
+        CI_REGISTRY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
+    - name: Build and Push Docker Image
+      run: |
+        GITLAB_USERNAME_LOWERCASE=$(echo ${{ secrets.GITLAB_USERNAME }} | tr '[:upper:]' '[:lower:]')
+        CI_REGISTRY_IMAGE=gitlab-registry.nrp-nautilus.io/$GITLAB_USERNAME_LOWERCASE/${{ github.event.repository.name }}
+        sed -i "s/PROJECT_NAME/$PROJECT_NAME/g" Dockerfile
+        sed -i "s|PROJECT_SSH_URL|$PROJECT_SSH_URL|g" Dockerfile
+        sudo rm -rf /opt/hostedtoolcache
+        sudo rm -rf "/usr/local/share/boost"
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+        df -h
+        mkdir -p .ssh/
+        echo "${{ secrets.GIT_DEPLOY_KEY }}" | base64 -d | tr -d '\r' > .ssh/id_rsa
+        echo "${{ secrets.SSH_CONFIG }}" | base64 -d | tr -d '\r' > .ssh/config
+        ssh-keyscan -p 30622 gitlab-ssh.nrp-nautilus.io >> .ssh/known_hosts
+        ssh-keyscan github.com >> .ssh/known_hosts
+        docker build --no-cache -t $CI_REGISTRY_IMAGE:$GITHUB_SHA .
+        docker tag $CI_REGISTRY_IMAGE:$GITHUB_SHA $CI_REGISTRY_IMAGE:latest
+        docker push $CI_REGISTRY_IMAGE:$GITHUB_SHA
+        docker push $CI_REGISTRY_IMAGE:latest
+        docker rmi -f $CI_REGISTRY_IMAGE:$GITHUB_SHA $CI_REGISTRY_IMAGE:latest
+        docker builder prune -a -f
+      env:
+        GIT_DEPLOY_KEY: ${{ secrets.GIT_DEPLOY_KEY }}
+        SSH_CONFIG: ${{ secrets.SSH_CONFIG }}
+        GITHUB_SHA: ${{ github.sha }}

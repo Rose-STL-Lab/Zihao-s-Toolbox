@@ -1,0 +1,30 @@
+name: Mirror to GitLab
+
+on:
+  push:
+    branches:
+      - '**'
+
+jobs:
+  mirror-to-gitlab:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Set up SSH and Mirror
+      run: |
+        mkdir -p ~/.ssh/
+        echo "${{ secrets.GITLAB_DEPLOY_KEY }}" | base64 -d | tr -d '\r' > ~/.ssh/id_rsa
+        echo "${{ secrets.SSH_CONFIG }}" | base64 -d | tr -d '\r' > ~/.ssh/config
+        ssh-keyscan -p 30622 gitlab-ssh.nrp-nautilus.io >> ~/.ssh/known_hosts
+        chmod 400 ~/.ssh/id_rsa
+        chmod 700 ~/.ssh
+        cat ~/.ssh/config
+        git remote add gitlab git@gitlab-ssh.nrp-nautilus.io:${{ secrets.GITLAB_USERNAME }}/${{ github.event.repository.name }}.git
+        git push gitlab refs/remotes/origin/*:refs/heads/*
+      env:
+        GITLAB_DEPLOY_KEY: ${{ secrets.GITLAB_DEPLOY_KEY }}
+        SSH_CONFIG: ${{ secrets.SSH_CONFIG }}
