@@ -193,12 +193,19 @@ if __name__ == '__main__':
                 for dataset in run_settings['dataset']:
                     if dataset not in launch_settings['dataset']:
                         raise ValueError(f"Dataset '{run_settings['dataset']}' not found in dataset configuration")
-                    
-        if type(launch_settings['run']) is dict:
-            validate_types(launch_settings['run'])
-        elif type(launch_settings['run']) is list:
-            for run_settings in launch_settings['run']:
-                validate_types(run_settings)
+        
+        if 'run' in launch_settings:
+            run_configs = launch_settings['run']
+        else:
+            run_configs = {
+                "model": list(launch_settings['model'].keys()),
+                "dataset": list(launch_settings['dataset'].keys()),
+            }
+        if type(run_configs) is dict:
+            validate_types(run_configs)
+        elif type(run_configs) is list:
+            for run_settings in run_configs:
+                validate_types(run_configs)
 
     mode = args.mode
     if mode == "pod" or mode == "copy_files":
@@ -248,14 +255,6 @@ if __name__ == '__main__':
                 yaml.dump(config, f)
             os.system(f"kubectl apply -f build/{name}.yaml")
     else:
-        if 'run' in launch_settings:
-            run_configs = launch_settings['run']
-        else:
-            run_configs = {
-                "model": list(launch_settings['model'].keys()),
-                "dataset": list(launch_settings['dataset'].keys()),
-            }
-
         if type(run_configs) is dict:
             batch(
                 run_configs=run_configs,
