@@ -110,7 +110,7 @@ def validate_launch_settings(launch_settings, create_config_signature):
             'extra': {
                 'model': Dict[str, Any],
                 'dataset': Dict[str, Any],
-                'run': Dict[str, Union[List[str], Dict[str, str]]]
+                'run': Union[Dict[str, Union[List[str], Dict[str, str]]], List[Dict[str, Union[List[str], Dict[str, str]]]]]
             }
         }
     }.items():
@@ -182,15 +182,23 @@ if __name__ == '__main__':
         
         # Perform typechecks
         validate_launch_settings(launch_settings, create_config_signature)
-        for key in launch_settings['run']:
-            if key not in ['model', 'dataset', 'hparam']:
-                raise ValueError(f"Unknown key '{key}' in run configuration")
-            for model in launch_settings['run']['model']:
-                if model not in launch_settings['model']:
-                    raise ValueError(f"Model '{launch_settings['run']['model']}' not found in model configuration") 
-            for dataset in launch_settings['run']['dataset']:
-                if dataset not in launch_settings['dataset']:
-                    raise ValueError(f"Dataset '{launch_settings['run']['dataset']}' not found in dataset configuration")
+        
+        def validate_types(run_settings):
+            for key in run_settings:
+                if key not in ['model', 'dataset', 'hparam']:
+                    raise ValueError(f"Unknown key '{key}' in run configuration")
+                for model in run_settings['model']:
+                    if model not in launch_settings['model']:
+                        raise ValueError(f"Model '{run_settings['model']}' not found in model configuration") 
+                for dataset in run_settings['dataset']:
+                    if dataset not in launch_settings['dataset']:
+                        raise ValueError(f"Dataset '{run_settings['dataset']}' not found in dataset configuration")
+                    
+        if type(launch_settings['run']) is dict:
+            validate_types(launch_settings['run'])
+        elif type(launch_settings['run']) is list:
+            for run_settings in launch_settings['run']:
+                validate_types(run_settings)
 
     mode = args.mode
     if mode == "pod" or mode == "copy_files":
@@ -248,11 +256,22 @@ if __name__ == '__main__':
                 "dataset": list(launch_settings['dataset'].keys()),
             }
 
-        batch(
-            run_configs=run_configs,
-            dataset_configs=launch_settings['dataset'],
-            model_configs=launch_settings['model'],
-            env=load_env_file(),
-            mode=mode,
-            **launch_settings
-        )
+        if type(run_configs) is dict:
+            batch(
+                run_configs=run_configs,
+                dataset_configs=launch_settings['dataset'],
+                model_configs=launch_settings['model'],
+                env=load_env_file(),
+                mode=mode,
+                **launch_settings
+            )
+        else:
+            for run_config in run_configs:
+                batch(
+                    run_configs=run_config,
+                    dataset_configs=launch_settings['dataset'],
+                    model_configs=launch_settings['model'],
+                    env=load_env_file(),
+                    mode=mode,
+                    **launch_settings
+                )
