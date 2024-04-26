@@ -204,8 +204,8 @@ if __name__ == '__main__':
         if type(run_configs) is dict:
             validate_types(run_configs)
         elif type(run_configs) is list:
-            for run_settings in run_configs:
-                validate_types(run_configs)
+            for run_config in run_configs:
+                validate_types(run_config)
 
     mode = args.mode
     if mode == "pod" or mode == "copy_files":
