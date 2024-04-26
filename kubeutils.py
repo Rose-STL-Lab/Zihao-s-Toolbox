@@ -284,13 +284,13 @@ source src/toolbox/s3region.sh
                         "nvidia.com/gpu": str(gpu_count),
                         "memory": f"{memory * 2}G",
                         "cpu": str(cpu_count * 2),
-                        "ephemeral-storage": f"{ephermal_storage}G"
+                        **({"ephemeral-storage": f"{ephermal_storage}G"} if ephermal_storage != 0 else {})
                     },
                     "requests": {
                         "nvidia.com/gpu": str(gpu_count),
                         "memory": f"{memory}G",
                         "cpu": str(cpu_count),
-                        "ephemeral-storage": f"{ephermal_storage}G"
+                        **({"ephemeral-storage": f"{ephermal_storage}G"} if ephermal_storage != 0 else {})
                     }
                 },
                 "volumeMounts": [
