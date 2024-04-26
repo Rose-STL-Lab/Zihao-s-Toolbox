@@ -117,20 +117,20 @@ Execute the following command to run experiments locally: `make local`
 Example output:
 
 ```
-Running {'data_fn': ['data/1.txt']} ... > export $(cat .env | xargs) && python src/avg.py data/1.txt
+Running {'data_fn': ['data/1.txt']} ... > export $(grep -v '^#' .env | xargs -d '\n') && python src/avg.py data/1.txt
 2.0
 ```
 
 Comment out the run section in `launch.yaml` and execute `make local` to run all possible combinations of experiments sequentially.
 
 ```
-Running {'data_fn': ['data/1.txt']} ... > export $(cat .env | xargs) && python src/avg.py data/1.txt
+Running {'data_fn': ['data/1.txt']} ... > export $(grep -v '^#' .env | xargs -d '\n') && python src/avg.py data/1.txt
 2.0
-Running {'data_fn': ['data/1.txt']} ... > export $(cat .env | xargs) && python src/med.py data/1.txt
+Running {'data_fn': ['data/1.txt']} ... > export $(grep -v '^#' .env | xargs -d '\n') && python src/med.py data/1.txt
 2.0
-Running {'data_fn': ['data/2.txt']} ... > export $(cat .env | xargs) && python src/avg.py data/2.txt
+Running {'data_fn': ['data/2.txt']} ... > export $(grep -v '^#' .env | xargs -d '\n') && python src/avg.py data/2.txt
 5.0
-Running {'data_fn': ['data/2.txt']} ... > export $(cat .env | xargs) && python src/med.py data/2.txt
+Running {'data_fn': ['data/2.txt']} ... > export $(grep -v '^#' .env | xargs -d '\n') && python src/med.py data/2.txt
 5.0
 ```
 
@@ -283,7 +283,7 @@ AWS_SECRET_ACCESS_KEY=<your_secret_key>
 S3_ENDPOINT_URL=https://...
 ```
 
-Load environment by `export $(cat .env | xargs)` or through make commands.
+Load environment by `export $(grep -v '^#' .env | xargs -d '\n')` or through make commands.
 
 You can perform wildcard searches, downloads, uploads, or deletions on S3 files:
 

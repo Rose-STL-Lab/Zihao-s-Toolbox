@@ -528,9 +528,9 @@ def batch(
                         if "local_command" in config_kwargs:
                             model_configs[model]['command'] = model_configs[model]['local_command']
                         command = fill_val({'_': model_configs[model]['command']}, hparam_dict)[0][0]['_']
-                        command = re.sub(r'\[(.*?)\]\(.*?\)', r'\1', command)
-                        command = 'export $(cat .env | xargs) && ' + command
-                        print(f"Running {hparam_dict} ... > {command}")
+                        command = re.sub(r'\[(.*?)\]\(.*?\)', r'\1', command).strip()
+                        print(f"Running {json.dumps(hparam_dict, indent=4)} ... \n```\n{command}\n```")
+                        command = 'export $(grep -v \'^#\' .env | xargs -d \'\\n\') && ' + command
                         os.system(command)
                         continue
                             
