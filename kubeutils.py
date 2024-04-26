@@ -10,6 +10,7 @@ import os
 import base64
 import sys
 import re
+import platform
 
 
 with open("config/kube.yaml", "r") as f:
@@ -529,8 +530,14 @@ def batch(
                             model_configs[model]['command'] = model_configs[model]['local_command']
                         command = fill_val({'_': model_configs[model]['command']}, hparam_dict)[0][0]['_']
                         command = re.sub(r'\[(.*?)\]\(.*?\)', r'\1', command).strip()
+                        system_type = platform.system()
+                        if system_type == 'Linux':
+                            command = 'export $(grep -v \'^#\' .env | xargs -d \'\\n\') && ' + command
+                        elif system_type in ['Darwin', 'FreeBSD']:
+                            command = 'export $(grep -v \'^#\' .env | xargs -0) && ' + command
+                        else:
+                            raise Exception("Unsupported OS")
                         print(f"Running {json.dumps(hparam_dict, indent=4)} ... \n```\n{command}\n```")
-                        command = 'export $(grep -v \'^#\' .env | xargs -d \'\\n\') && ' + command
                         os.system(command)
                         continue
                             
