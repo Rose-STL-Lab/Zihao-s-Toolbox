@@ -110,7 +110,8 @@ def validate_launch_settings(launch_settings, create_config_signature):
             'extra': {
                 'model': Dict[str, Any],
                 'dataset': Dict[str, Any],
-                'run': Union[Dict[str, Union[List[str], Dict[str, str]]], List[Dict[str, Union[List[str], Dict[str, str]]]]]
+                'run': Union[Dict[str, Union[List[str], Dict[str, str], Dict[str, Union[str, List[str], Dict[str, Dict]]]]], 
+                             List[Dict[str, Union[List[str], Dict[str, str], Dict[str, Union[str, List[str], Dict[str, Dict]]]]]]]
             }
         }
     }.items():
