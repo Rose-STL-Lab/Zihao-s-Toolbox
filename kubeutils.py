@@ -11,12 +11,36 @@ import base64
 import sys
 import re
 import platform
+import hashlib
 
 
 with open("config/kube.yaml", "r") as f:
     settings = yaml.safe_load(f)
     
+
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
     
+
+def normalize(s):
+    return s.replace('_', '-').replace(' ', '-').replace('/', '-')    
+
+
+def abbreviate(s):
+    s = normalize(s)
+    if is_number(s):
+        return s
+    parts = s.split('-')
+    if len(parts) > 1:
+        return ''.join(part[0] for part in parts)
+    else:
+        return s[:1]
+
+
 # Function to base64 encode the content of a given file
 def base64_encode_file_content(file_path):
     with open(file_path, 'rb') as file:
@@ -481,7 +505,7 @@ def batch(
         project_name = settings["project_name"]
     
     assert mode in ["job", "local", "dryrun"]
-        
+
     for dataset in run_configs["dataset"]:
         for model in run_configs["model"]:
             hparam = {}
@@ -491,16 +515,35 @@ def batch(
                 hparam.update(model_configs[model]["hparam"])
             
             for config, hparam_dict in zip(*fill_val(model_configs[model], hparam)):
-                model_n = model.replace('_', '-').replace(' ', '-').replace('/', '-')
-                dataset_n = dataset.replace('_', '-').replace(' ', '-').replace('/', '-')
+                model_n = normalize(model)
+                dataset_n = normalize(dataset)
                 name = f"{project_name}-{model_n}-{dataset_n}"
+                name_ = deepcopy(name)
+                
+                # Check if the name is too long
+                abbrev = False
                 for key, value in hparam_dict.items():
                     if not key.startswith("_"):
-                        name += f"-{key}-{value}"
+                        name_ += f"-{normalize(key)}-{normalize(value)}"
+                if len(name_) > 63:
+                    abbrev = True
+                
+                for key, value in hparam_dict.items():
+                    if not key.startswith("_"):
+                        if abbrev:
+                            name += f"-{abbreviate(key)}-{abbreviate(value)}"
+                        else:
+                            name += f"-{normalize(key)}-{normalize(value)}"
+                    else:
+                        key = key[1:]
                     if "hparam" in run_configs and key in run_configs["hparam"] and \
                     value not in run_configs["hparam"][key]:
                         break
                 else:
+                    # If abbreviated, add hash of param
+                    hash_object = hashlib.sha256(json.dumps(hparam_dict).encode())
+                    name += '-' + hash_object.hexdigest()[:5]
+                    
                     if "hparam" in run_configs and "hparam" in config:
                         del config["hparam"]
                     
@@ -543,6 +586,25 @@ def batch(
                             
                     if "local_command" in config_kwargs:
                         del config_kwargs["local_command"]
+                    
+                    print(f"Generating kube config {json.dumps(hparam_dict, indent=4)} ...")
+                    hparam_dict = {k[1:] if k.startswith("_") else k: v for k, v in hparam_dict.items()}
+                    
+                    if "gpu_count" in hparam_dict:
+                        print(f"GPU count overriden by hparam: {hparam_dict['gpu_count']}")
+                        config_kwargs["gpu_count"] = int(hparam_dict["gpu_count"])
+                    if "gpu_whitelist" in hparam_dict:
+                        print(f"GPU white list overriden by hparam: {hparam_dict['gpu_whitelist']}")
+                        if type(hparam_dict["gpu_whitelist"]) is str:
+                            config_kwargs["gpu_whitelist"] = [hparam_dict["gpu_whitelist"]]
+                        else:
+                            config_kwargs["gpu_whitelist"] = hparam_dict["gpu_whitelist"]
+                    if "cpu_count" in hparam_dict:
+                        print(f"CPU count overriden by hparam: {hparam_dict['cpu_count']}")
+                        config_kwargs["cpu_count"] = int(hparam_dict["cpu_count"])
+                    if "memory" in hparam_dict:
+                        print(f"Memory overriden by hparam: {hparam_dict['memory']}")
+                        config_kwargs["memory"] = int(hparam_dict["memory"])
                     
                     config = create_config(
                         name=name,
