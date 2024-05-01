@@ -103,7 +103,7 @@ endif
 dryrun: kube
 	$(call launch_command,--mode dryrun)
 
-copy_files: kube
+copy: kube
 ifdef pod_name
 	$(call launch_command,--mode copy_files --pod_name $(pod_name))
 else
