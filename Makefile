@@ -94,8 +94,8 @@ job: kube
 	$(call launch_command,--mode job)
 
 pod: kube
-ifdef pod_name
-	$(call launch_command,--mode pod --pod_name $(pod_name))
+ifdef pod
+	$(call launch_command,--mode pod --pod $(pod))
 else
 	$(call launch_command,--mode pod)
 endif
@@ -104,8 +104,8 @@ dryrun: kube
 	$(call launch_command,--mode dryrun)
 
 copy: kube
-ifdef pod_name
-	$(call launch_command,--mode copy_files --pod_name $(pod_name))
+ifdef pod
+	$(call launch_command,--mode copy_files --pod $(pod))
 else
 	$(call launch_command,--mode copy_files)
 endif

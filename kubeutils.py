@@ -525,7 +525,7 @@ def batch(
                 for key, value in hparam_dict.items():
                     if not key.startswith("_"):
                         name_ += f"-{normalize(key)}-{normalize(value)}"
-                if len(name_) > 63:
+                if len(name_) > 63 - 6:  # Exclude hash
                     abbrev = True
                 
                 for key, value in hparam_dict.items():
@@ -540,7 +540,6 @@ def batch(
                     value not in run_configs["hparam"][key]:
                         break
                 else:
-                    # If abbreviated, add hash of param
                     hash_object = hashlib.sha256(json.dumps(hparam_dict).encode())
                     name += '-' + hash_object.hexdigest()[:5]
                     
