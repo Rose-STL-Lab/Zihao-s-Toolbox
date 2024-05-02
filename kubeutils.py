@@ -586,9 +586,6 @@ def batch(
                     if "local_command" in config_kwargs:
                         del config_kwargs["local_command"]
                     
-                    print(f"Generating kube config {json.dumps(hparam_dict, indent=4)} ...")
-                    hparam_dict = {k[1:] if k.startswith("_") else k: v for k, v in hparam_dict.items()}
-                    
                     if "gpu_count" in hparam_dict:
                         print(f"GPU count overriden by hparam: {hparam_dict['gpu_count']}")
                         config_kwargs["gpu_count"] = int(hparam_dict["gpu_count"])
@@ -610,6 +607,13 @@ def batch(
                         project_name=project_name,
                         **config_kwargs
                     )
+                    
+                    command = config["spec"]["template"]["spec"]["containers"][0]["command"][-1].strip()
+                    if "source startup.sh;" in command:
+                        command = command[command.index("source startup.sh;"):]
+                    print(f"Generated kube config {json.dumps(hparam_dict, indent=4)} ... \n```\n{command}\n```")
+                    hparam_dict = {k[1:] if k.startswith("_") else k: v for k, v in hparam_dict.items()}
+                    
                     name = config["metadata"]["name"]
                     yaml.Dumper.ignore_aliases = lambda *_: True
                     if not os.path.exists("build"):
