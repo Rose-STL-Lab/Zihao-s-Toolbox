@@ -5,6 +5,7 @@ import fnmatch
 from botocore.exceptions import ClientError
 from botocore import UNSIGNED
 from botocore.client import Config
+import shutil
 
 
 S3_ENDPOINT_URL = os.getenv('S3_ENDPOINT_URL')
@@ -19,6 +20,14 @@ if os.getenv('AWS_ACCESS_KEY_ID') and os.getenv('AWS_SECRET_ACCESS_KEY'):
 else:
     # Credentials are not provided, use anonymous access
     s3_client = boto3.client('s3', endpoint_url=S3_ENDPOINT_URL, config=Config(signature_version=UNSIGNED))
+
+
+def run_s5cmd_and_log(s5cmd_command, log_file_path="download.log"):
+    os.system(
+        s5cmd_command + 
+        " 2>&1 | awk 'BEGIN{RS=\" \"; ORS=\"\"} {print $0 (/\\n/ ? \"\" : \" \"); if(tolower($0) ~ /%/) print \"\\n\"}' | tee -a " +
+        log_file_path
+    )
 
 
 def get_local_files(s3_path, local_path):
@@ -114,6 +123,10 @@ def download_s3_path(s3_path, local_path='./'):
     """
     Download all files in the S3 path to the local file system.
     """
+    if shutil.which('s5cmd'):
+        s3_path = s3_path.rstrip('/')
+        s5cmd_command = f"s5cmd cp --sp 's3://{S3_BUCKET_NAME}/{s3_path}/*' {os.path.join(local_path, s3_path)}/"
+        run_s5cmd_and_log(s5cmd_command)
     s3_objects = get_s3_objects(s3_path)
     download_s3_objects(s3_objects, local_path)
             
@@ -200,13 +213,19 @@ def upload_s3_objects(local_files, local_path='./'):
                 s3_client.upload_file(local_file, S3_BUCKET_NAME, s3_key)
                 print(f"Uploaded {local_file} to {s3_key}")
                 
-                
+
 def upload_s3_path(s3_path, local_path='./'):
     """
     Upload all files in the local path to the S3 path.
     """
-    local_files = get_local_files(s3_path, local_path)
-    upload_s3_objects(local_files, local_path)
+    if shutil.which('s5cmd'):
+        s3_path = s3_path.rstrip('/')
+        local_path = os.path.join(local_path, s3_path)
+        s5cmd_command = f"s5cmd cp -n --sp {local_path}/ s3://{S3_BUCKET_NAME}/{s3_path}/"
+        run_s5cmd_and_log(s5cmd_command)
+    else:
+        local_files = get_local_files(s3_path, local_path)
+        upload_s3_objects(local_files, local_path)
 
 
 def interactive_list_and_action(s3_path, local_path):
@@ -271,12 +290,13 @@ if __name__ == "__main__":
     parser.add_argument("--remove", help="Remove S3 files", action="store_true")
     parser.add_argument("--delete", help="Delete local files", action="store_true")
     parser.add_argument("--interactive", help="Interactive mode", action="store_true")
+    parser.add_argument("--local_path", help="Local path", type=str, default="./")
     parser.add_argument("path", help="The S3 or local path pattern", type=str)
 
     args = parser.parse_args()
 
     s3_path = args.path
-    local_path = "./"
+    local_path = args.local_path
 
     if args.find:
         file_type = "folders" if s3_path.endswith("/") else "files"

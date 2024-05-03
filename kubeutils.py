@@ -133,6 +133,7 @@ def create_config(
     ## Pod config
     name: str,
     command: str,
+    dev_command: str = None,
     gpu_count: int = 0,
     cpu_count: int = 0,
     ephermal_storage: int = 0,
@@ -602,17 +603,33 @@ def batch(
                     if "memory" in hparam_dict:
                         print(f"Memory overriden by hparam: {hparam_dict['memory']}")
                         config_kwargs["memory"] = int(hparam_dict["memory"])
-                    
+
                     config = create_config(
                         name=name,
                         project_name=project_name,
                         **config_kwargs
                     )
                     
+                    original_command = config["spec"]["template"]["spec"]["containers"][0]["command"][-1].strip()
+                    if "dev" in hparam_dict["run_mode"] and "dev_command" in config_kwargs:
+                        config["spec"]["template"]["spec"]["containers"][0]["command"][-1] = re.sub(
+                            r'(accelerate launch|python) .*\.py', 
+                            config_kwargs['dev_command'], 
+                            config["spec"]["template"]["spec"]["containers"][0]["command"][-1]
+                        )
+                        print(f"Command overriden by hparam: {config_kwargs['dev_command']}")
                     command = config["spec"]["template"]["spec"]["containers"][0]["command"][-1].strip()
+                    
                     if "source startup.sh;" in command:
+                        original_command = original_command[original_command.index("source startup.sh;"):]
                         command = command[command.index("source startup.sh;"):]
-                    print(f"Generated kube config {json.dumps(hparam_dict, indent=4)} ... \n```\n{command}\n```\nand saved to build/{name}.yaml")
+                        
+                    if "dev" in hparam_dict["run_mode"] and "dev_command" in config_kwargs:
+                        print(f"Generated kube config {json.dumps(hparam_dict, indent=4)} ... \n"
+                              f"\nDEV command: \n```\n{command}\n```"
+                              f"\nORIGINAL command: \n```\n{original_command}\n```\nand saved to build/{name}.yaml")
+                    else:
+                        print(f"Generated kube config {json.dumps(hparam_dict, indent=4)} ... \n```\n{command}\n```")
                     
                     name = config["metadata"]["name"]
                     yaml.Dumper.ignore_aliases = lambda *_: True
