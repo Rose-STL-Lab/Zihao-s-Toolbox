@@ -506,6 +506,10 @@ def batch(
         project_name = settings["project_name"]
     
     assert mode in ["job", "local", "dryrun"]
+    
+    for key, val in run_configs["hparam"].items():
+        if type(val) is str:
+            run_configs["hparam"][key] = [val]
 
     for dataset in run_configs["dataset"]:
         for model in run_configs["model"]:
