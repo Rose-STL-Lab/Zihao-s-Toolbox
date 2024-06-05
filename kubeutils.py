@@ -396,7 +396,7 @@ source src/toolbox/s3region.sh
         container = template["containers"][0]
         for entry in ["limits", "requests"]:
             container["resources"][entry]["nvidia.com/gpu"] = "1"
-            container["resources"][entry]["memory"] = "100"
+            container["resources"][entry]["memory"] = "100G"
             container["resources"][entry]["cpu"] = "5"
         config = {
             "apiVersion": "v1",
