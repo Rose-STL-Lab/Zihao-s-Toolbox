@@ -3,21 +3,14 @@ ifneq ("$(wildcard ./__init__.py)","")
 $(error "__init__.py is present in the current directory. Please install this as a submodule under src/toolbox and then run 'ln -s src/toolbox/Makefile Makefile'")
 endif
 
-.PHONY: clean data lint requirements yaml test help kube
-.PHONY: prompt_for_file interactive find fd list ls download down upload up remove rm
-.PHONY: local job pod dryrun delete
+.PHONY: all $(MAKECMDGOALS)
 
 #################################################################################
 # GLOBALS                                                                       #
 #################################################################################
 
--include project.mk
-
 -include .env
-
-ifneq ("$(wildcard .env)","")
-	export $(shell sed 's/=.*//' .env)
-endif
+-include project.mk
 
 SHELL = /bin/bash
 PROJECT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
