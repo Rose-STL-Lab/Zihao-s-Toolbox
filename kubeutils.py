@@ -16,7 +16,7 @@ import hashlib
 
 with open("config/kube.yaml", "r") as f:
     settings = yaml.safe_load(f)
-    
+
 
 def is_number(s):
     try:
@@ -24,10 +24,10 @@ def is_number(s):
         return True
     except ValueError:
         return False
-    
+
 
 def normalize(s):
-    return s.replace('_', '-').replace(' ', '-').replace('/', '-')    
+    return s.replace('_', '-').replace(' ', '-').replace('/', '-')
 
 
 def abbreviate(s):
@@ -54,22 +54,24 @@ def is_binary_file(file_path):
     try:
         with open(file_path, 'rb') as file:
             chunk = file.read(1024)  # Read first 1024 bytes
-        text_chars = bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7f})
+        text_chars = bytearray({7, 8, 9, 10, 12, 13, 27}
+                               | set(range(0x20, 0x100)) - {0x7f})
         if not chunk:  # Empty files are considered text files
             return False
         return bool(chunk.translate(None, text_chars))
     except Exception as e:
         print(f"[Error] Could not read file {file_path}: {e}")
         return True
-    
-    
+
+
 # Create script to copy files
 def file_to_script(file):
     file_copy_script = []
     for f in file:
         normalized_path = os.path.normpath(f)
         if not os.path.exists(normalized_path):
-            print(f"[Error] File or directory {normalized_path} does not exist. Quitting...")
+            print(
+                f"[Error] File or directory {normalized_path} does not exist. Quitting...")
             sys.exit(1)
 
         if os.path.isdir(normalized_path):
@@ -85,21 +87,24 @@ def file_to_script(file):
                     if relative_dir != ".":
                         file_copy_script.append(f"mkdir -p '{relative_dir}' ")
                     escaped_f = file_path.replace("'", "'\\''")
-                    file_copy_script.append(f"echo '{encoded_content}' | base64 -d | tr -d '\\r' > '{escaped_f}' && echo >> '{escaped_f}' ")
+                    file_copy_script.append(
+                        f"echo '{encoded_content}' | base64 -d | tr -d '\\r' > '{escaped_f}' && echo >> '{escaped_f}' ")
         else:
             if is_binary_file(normalized_path):
                 print(f"[Warning] Skipping binary file: {normalized_path}")
                 continue
             encoded_content = base64_encode_file_content(normalized_path)
             escaped_f = normalized_path.replace("'", "'\\''")
-            file_copy_script.append(f"echo '{encoded_content}' | base64 -d | tr -d '\\r' > '{escaped_f}' && echo >> '{escaped_f}' ")
+            file_copy_script.append(
+                f"echo '{encoded_content}' | base64 -d | tr -d '\\r' > '{escaped_f}' && echo >> '{escaped_f}' ")
     return file_copy_script
-    
+
 
 def check_job_status(name):
     # Get the job information in JSON format
     result = subprocess.run(
-        ["kubectl", "--namespace=" + settings["namespace"], "get", "job", name, "-o=json"],
+        ["kubectl", "--namespace=" + settings["namespace"],
+            "get", "job", name, "-o=json"],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -115,22 +120,24 @@ def check_job_status(name):
             return "running"
         if job_info.get("status", {}).get("failed", 0) > 0:
             return "failed"
-        
+
         return "unknown"
     else:
         return "not_found"
-    
+
 
 def delete_job(name):
-    subprocess.run(["kubectl", "--namespace=" + settings["namespace"], "delete", "job", name])
+    subprocess.run(["kubectl", "--namespace=" +
+                   settings["namespace"], "delete", "job", name])
 
 
 def create_job(name):
-    subprocess.run(["kubectl", "--namespace=" + settings["namespace"], "create", "-f", f"build/{name}.yaml"])
+    subprocess.run(["kubectl", "--namespace=" +
+                   settings["namespace"], "create", "-f", f"build/{name}.yaml"])
 
 
 def create_config(
-    ## Pod config
+    # Pod config
     name: str,
     command: str,
     dev_command: str = None,
@@ -148,34 +155,34 @@ def create_config(
     ssh_port: int = None,
     tolerations: List[str] = None,
     volumes: dict[str, str] = None,
-    
-    ## User config
+
+    # User config
     namespace: str = None,
     user: str = None,
     image: str = None,
     image_pull_secrets: str = None,
     prefix: str = None,
-    
-    ## Node config
+
+    # Node config
     hostname_blacklist: List[str] = None,
     hostname_whitelist: List[str] = None,
     gpu_blacklist: List[str] = None,
     gpu_whitelist: List[str] = None,
-    
-    ## Files to map
+
+    # Files to map
     file: List[str] = [],
-    
-    ## Omit undefined kwargs
+
+    # Omit undefined kwargs
     **ignored
 ):
     assert startup_script is None or "sleep infinity" not in startup_script
     assert "sleep infinity" not in command
-    
+
     for key, value in ignored.items():
         if key != "hparam":
             print(f"[Warning] Key {key}={value} is unknown. Ignoring it.")
-    
-    ## Initialization
+
+    # Initialization
     if prefix is None:
         name = f"{settings['user']}-{name}"
     else:
@@ -195,7 +202,8 @@ def create_config(
                 if "registry_host" in settings:
                     registry_host = settings["registry_host"]
                 else:
-                    raise ValueError("[Error] registry_host is a required field in kube.yaml if image undefined")
+                    raise ValueError(
+                        "[Error] registry_host is a required field in kube.yaml if image undefined")
             image = f"{settings['registry_host']}/{user}/{project_name}:latest"
     if image_pull_secrets is None:
         if "image_pull_secrets" in settings:
@@ -221,7 +229,7 @@ def create_config(
             else:
                 raise ValueError(("[Error] conda_home is a required field in kube.yaml"
                                   "if startup_script undefined"))
-            
+
             if ssh_host is None or ssh_port is None:
                 if "ssh_host" in settings and "ssh_port" in settings:
                     ssh_port = settings["ssh_port"]
@@ -248,9 +256,10 @@ source src/toolbox/s3region.sh
         file.append('config')
     if 'config/kube.yaml' not in file:
         file.append('config/kube.yaml')
-        
+
     startup_script += "\n".join(file_to_script(file))
-    startup_encoding = base64.b64encode(bytes(startup_script, 'utf-8')).decode('utf-8')
+    startup_encoding = base64.b64encode(
+        bytes(startup_script, 'utf-8')).decode('utf-8')
     load_startup_script = f"echo {startup_encoding} | base64 -d > startup.sh && chmod +x startup.sh && source startup.sh; "
 
     if tolerations is None:
@@ -280,14 +289,14 @@ source src/toolbox/s3region.sh
     for env_key in env:
         if env[env_key] in nautilus_s3_map:
             env[env_key] = nautilus_s3_map[env[env_key]]
-        
+
     env = [{'name': k, 'value': v} for k, v in env.items()]
-    
+
     metadata = {
         "namespace": namespace,
         "labels": {"user": user, "project": project_name}
     }
-    
+
     command = re.sub(r'\[(.*?)\]\((.*?)\)', r'\2', command)
 
     template = {
@@ -296,19 +305,20 @@ source src/toolbox/s3region.sh
                 "name": "gpu-container",
                 "image": image,
                 "command": [
-                    "conda", 
-                    "run", 
-                    "-n", 
-                    project_name, 
-                    "/bin/bash", 
-                    "-c", 
-                    ((load_startup_script + server_command) if interactive else (load_startup_script + command))
+                    "conda",
+                    "run",
+                    "-n",
+                    project_name,
+                    "/bin/bash",
+                    "-c",
+                    ((load_startup_script + server_command)
+                     if interactive else (load_startup_script + command))
                 ],
                 "resources": {
                     "limits": {
                         "nvidia.com/gpu": str(gpu_count),
-                        "memory": f"{memory * 2}G",
-                        "cpu": str(cpu_count * 2),
+                        "memory": f"{memory * 1.2}G",
+                        "cpu": str(cpu_count * 1.2),
                         **({"ephemeral-storage": f"{ephermal_storage}G"} if ephermal_storage != 0 else {})
                     },
                     "requests": {
@@ -322,7 +332,7 @@ source src/toolbox/s3region.sh
                     {"mountPath": "/dev/shm", "name": "dshm"},
                 ] + ([
                     {"mountPath": volumes[volume], "name": volume}
-                for volume in volumes]),
+                    for volume in volumes]),
                 "env": [
                     {"name": "PYTHONUNBUFFERED", "value": "1"},
                     {"name": "PYTHONIOENCODING", "value": "UTF-8"},
@@ -373,12 +383,12 @@ source src/toolbox/s3region.sh
         },
         "tolerations": [
             {
-                "key": key, 
-                "operator": "Equal", 
-                "value": "true", 
+                "key": key,
+                "operator": "Equal",
+                "value": "true",
                 "effect": "NoSchedule"
             }
-        for key in tolerations],
+            for key in tolerations],
         "volumes": [
             {
                 "name": "dshm",
@@ -389,9 +399,9 @@ source src/toolbox/s3region.sh
                 "name": volume,
                 "persistentVolumeClaim": {"claimName": volume}
             }
-        for volume in volumes]
+            for volume in volumes]
     }
-    
+
     if interactive:
         container = template["containers"][0]
         for entry in ["limits", "requests"]:
@@ -416,7 +426,7 @@ source src/toolbox/s3region.sh
             }}
         }
         return config
-    
+
 
 def fill_val_helper(config, key, value):
     # Helper function to replace a single value
@@ -483,33 +493,35 @@ def fill_val(original_config, vals):
         for key, value in zip(keys, combination):
             fill_val_helper(new_config, key, value)
         configs.append(new_config)
-    val_combination = [dict(zip(keys, combination)) for combination in val_combination]
+    val_combination = [dict(zip(keys, combination))
+                       for combination in val_combination]
     return configs, val_combination
 
 
 def batch(
-    run_configs: dict, 
-    dataset_configs: dict, 
-    model_configs: dict, 
-    project_name: str = None, 
+    run_configs: dict,
+    dataset_configs: dict,
+    model_configs: dict,
+    project_name: str = None,
     mode: str = "job",
     **kwargs
-):  
+):
     """
     mode: str
         mode=job: Create jobs in the Kubernetes cluster
         mode=local: Runs jobs locally
         mode=dryrun: Only creates the job files without running them
     """
-    ## Initialization
+    # Initialization
     if project_name is None:
         project_name = settings["project_name"]
-    
+
     assert mode in ["job", "local", "dryrun"]
-    
-    for key, val in run_configs["hparam"].items():
-        if type(val) is str:
-            run_configs["hparam"][key] = [val]
+
+    if "hparam" in run_configs:
+        for key, val in run_configs["hparam"].items():
+            if type(val) is str:
+                run_configs["hparam"][key] = [val]
 
     for dataset in run_configs["dataset"]:
         for model in run_configs["model"]:
@@ -518,13 +530,13 @@ def batch(
                 hparam.update(dataset_configs[dataset]["hparam"])
             if "hparam" in model_configs[model]:
                 hparam.update(model_configs[model]["hparam"])
-            
+
             for config, hparam_dict in zip(*fill_val(model_configs[model], hparam)):
                 model_n = normalize(model)
                 dataset_n = normalize(dataset)
                 name = f"{project_name}-{model_n}-{dataset_n}"
                 name_ = deepcopy(name)
-                
+
                 # Check if the name is too long
                 abbrev = False
                 for key, value in hparam_dict.items():
@@ -532,7 +544,7 @@ def batch(
                         name_ += f"-{normalize(key)}-{normalize(value)}"
                 if len(name_) > 63 - 6:  # Exclude hash
                     abbrev = True
-                
+
                 for key, value in hparam_dict.items():
                     if not key.startswith("_"):
                         if abbrev:
@@ -542,15 +554,16 @@ def batch(
                     else:
                         key = key[1:]
                     if "hparam" in run_configs and key in run_configs["hparam"] and \
-                    value not in run_configs["hparam"][key]:
+                            value not in run_configs["hparam"][key]:
                         break
                 else:
-                    hash_object = hashlib.sha256(json.dumps(hparam_dict).encode())
+                    hash_object = hashlib.sha256(
+                        json.dumps(hparam_dict).encode())
                     name += '-' + hash_object.hexdigest()[:5]
-                    
+
                     if "hparam" in run_configs and "hparam" in config:
                         del config["hparam"]
-                    
+
                     config_kwargs = deepcopy(kwargs)
                     if 'model' in config_kwargs:
                         del config_kwargs['model']
@@ -565,18 +578,21 @@ def batch(
                         config_kwargs['env'].update(kwargs['env'])
                     else:
                         config_kwargs['env'] = kwargs['env']
-                    
+
                     # Remove projectwise keys
                     for key in ["project_name", "user", "namespace"]:
                         if key in config_kwargs:
-                            print(f"[Warning] Key {key}={config_kwargs[key]} is not allowed in {name}. Ignoring it.")
+                            print(
+                                f"[Warning] Key {key}={config_kwargs[key]} is not allowed in {name}. Ignoring it.")
                             del config_kwargs[key]
 
                     if mode == "local":
                         if "local_command" in config_kwargs:
                             model_configs[model]['command'] = model_configs[model]['local_command']
-                        command = fill_val({'_': model_configs[model]['command']}, hparam_dict)[0][0]['_']
-                        command = re.sub(r'\[(.*?)\]\(.*?\)', r'\1', command).strip()
+                        command = fill_val({'_': model_configs[model]['command']}, hparam_dict)[
+                            0][0]['_']
+                        command = re.sub(
+                            r'\[(.*?)\]\(.*?\)', r'\1', command).strip()
                         system_type = platform.system()
                         if system_type == 'Linux':
                             command = 'export $(grep -v \'^#\' .env | xargs -d \'\\n\') && ' + command
@@ -584,28 +600,37 @@ def batch(
                             command = 'export $(grep -v \'^#\' .env | xargs -0) && ' + command
                         else:
                             raise Exception("Unsupported OS")
-                        print(f"Running {json.dumps(hparam_dict, indent=4)} ... \n```\n{command}\n```")
+                        print(
+                            f"Running {json.dumps(hparam_dict, indent=4)} ... \n```\n{command}\n```")
                         os.system(command)
                         continue
-                            
+
                     if "local_command" in config_kwargs:
                         del config_kwargs["local_command"]
-                    
-                    hparam_dict = {k[1:] if k.startswith("_") else k: v for k, v in hparam_dict.items()}
+
+                    hparam_dict = {k[1:] if k.startswith(
+                        "_") else k: v for k, v in hparam_dict.items()}
                     if "gpu_count" in hparam_dict:
-                        print(f"GPU count overriden by hparam: {hparam_dict['gpu_count']}")
-                        config_kwargs["gpu_count"] = int(hparam_dict["gpu_count"])
+                        print(
+                            f"GPU count overriden by hparam: {hparam_dict['gpu_count']}")
+                        config_kwargs["gpu_count"] = int(
+                            hparam_dict["gpu_count"])
                     if "gpu_whitelist" in hparam_dict:
-                        print(f"GPU white list overriden by hparam: {hparam_dict['gpu_whitelist']}")
+                        print(
+                            f"GPU white list overriden by hparam: {hparam_dict['gpu_whitelist']}")
                         if type(hparam_dict["gpu_whitelist"]) is str:
-                            config_kwargs["gpu_whitelist"] = [hparam_dict["gpu_whitelist"]]
+                            config_kwargs["gpu_whitelist"] = [
+                                hparam_dict["gpu_whitelist"]]
                         else:
                             config_kwargs["gpu_whitelist"] = hparam_dict["gpu_whitelist"]
                     if "cpu_count" in hparam_dict:
-                        print(f"CPU count overriden by hparam: {hparam_dict['cpu_count']}")
-                        config_kwargs["cpu_count"] = int(hparam_dict["cpu_count"])
+                        print(
+                            f"CPU count overriden by hparam: {hparam_dict['cpu_count']}")
+                        config_kwargs["cpu_count"] = int(
+                            hparam_dict["cpu_count"])
                     if "memory" in hparam_dict:
-                        print(f"Memory overriden by hparam: {hparam_dict['memory']}")
+                        print(
+                            f"Memory overriden by hparam: {hparam_dict['memory']}")
                         config_kwargs["memory"] = int(hparam_dict["memory"])
 
                     config = create_config(
@@ -613,28 +638,31 @@ def batch(
                         project_name=project_name,
                         **config_kwargs
                     )
-                    
+
                     original_command = config["spec"]["template"]["spec"]["containers"][0]["command"][-1].strip()
-                    if "dev" in hparam_dict["run_mode"] and "dev_command" in config_kwargs:
+                    if "run_mode" in hparam_dict and "dev" in hparam_dict["run_mode"] and "dev_command" in config_kwargs:
                         config["spec"]["template"]["spec"]["containers"][0]["command"][-1] = re.sub(
-                            r'(accelerate launch|python) .*\.py', 
-                            config_kwargs['dev_command'], 
+                            r'(accelerate launch|python) .*\.py',
+                            config_kwargs['dev_command'],
                             config["spec"]["template"]["spec"]["containers"][0]["command"][-1]
                         )
-                        print(f"Command overriden by hparam: {config_kwargs['dev_command']}")
+                        print(
+                            f"Command overriden by hparam: {config_kwargs['dev_command']}")
                     command = config["spec"]["template"]["spec"]["containers"][0]["command"][-1].strip()
-                    
+
                     if "source startup.sh;" in command:
-                        original_command = original_command[original_command.index("source startup.sh;"):]
+                        original_command = original_command[original_command.index(
+                            "source startup.sh;"):]
                         command = command[command.index("source startup.sh;"):]
-                        
-                    if "dev" in hparam_dict["run_mode"] and "dev_command" in config_kwargs:
+
+                    if "run_mode" in hparam_dict and "dev" in hparam_dict["run_mode"] and "dev_command" in config_kwargs:
                         print(f"Generated kube config {json.dumps(hparam_dict, indent=4)} ... \n"
                               f"\nDEV command: \n```\n{command}\n```"
                               f"\nORIGINAL command: \n```\n{original_command}\n```\nand saved to build/{name}.yaml")
                     else:
-                        print(f"Generated kube config {json.dumps(hparam_dict, indent=4)} ... \n```\n{command}\n```")
-                    
+                        print(
+                            f"Generated kube config {json.dumps(hparam_dict, indent=4)} ... \n```\n{command}\n```")
+
                     name = config["metadata"]["name"]
                     yaml.Dumper.ignore_aliases = lambda *_: True
                     if not os.path.exists("build"):
@@ -643,11 +671,13 @@ def batch(
                         yaml.dump(config, f)
                     if mode == "job":
                         status = check_job_status(name)
-                        
+
                         if status == "succeeded" or status == "running":
-                            print(f"Job '{name}' is already {status}. Doing nothing.")
+                            print(
+                                f"Job '{name}' is already {status}. Doing nothing.")
                         elif status == "failed":
-                            print(f"Job '{name}' has failed. Deleting the job.")
+                            print(
+                                f"Job '{name}' has failed. Deleting the job.")
                             delete_job(name)
                             print(f"Creating job '{name}'.")
                             create_job(name)
