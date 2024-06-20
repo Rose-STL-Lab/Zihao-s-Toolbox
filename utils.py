@@ -1,6 +1,3 @@
-import resource
-
-
 def load_env_file(file_path='.env'):
     env_dict = {}
     with open(file_path, 'r') as file:
@@ -48,5 +45,24 @@ def load_class(info: dict, init=True):
 
 
 def increase_u_limit():
+    import resource
+
     rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
     resource.setrlimit(resource.RLIMIT_NOFILE, (65536, rlimit[1]))
+
+
+def plotly_to_png(fig):
+    import plotly.io as pio
+    import os
+    import cairosvg
+    from PIL import Image
+    import shutil
+    
+    svg = pio.to_image(fig, format='svg')
+    os.makedirs("tmp", exist_ok=True)
+    with open("tmp/tmp.svg", "wb") as tmp_svg:
+        tmp_svg.write(svg)
+    cairosvg.svg2png(url=tmp_svg.name, write_to="tmp/tmp.png", scale=5)
+    img = Image.open("tmp/tmp.png")
+    shutil.rmtree("tmp")
+    return img
