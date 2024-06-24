@@ -53,16 +53,23 @@ def increase_u_limit():
 
 def plotly_to_png(fig):
     import plotly.io as pio
-    import os
     import cairosvg
     from PIL import Image
-    import shutil
-    
+    import tempfile
+
+    # Assuming 'fig' is defined elsewhere in your code
     svg = pio.to_image(fig, format='svg')
-    os.makedirs("tmp", exist_ok=True)
-    with open("tmp/tmp.svg", "wb") as tmp_svg:
-        tmp_svg.write(svg)
-    cairosvg.svg2png(url=tmp_svg.name, write_to="tmp/tmp.png", scale=5)
-    img = Image.open("tmp/tmp.png")
-    shutil.rmtree("tmp")
+
+    # Use tempfile for managing temporary files/directories
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        svg_path = f"{tmpdirname}/tmp.svg"
+        png_path = f"{tmpdirname}/tmp.png"
+        # Write SVG to a temporary file
+        with open(svg_path, "wb") as tmp_svg:
+            tmp_svg.write(svg)
+        # Convert SVG to PNG using cairosvg
+        cairosvg.svg2png(url=svg_path, write_to=png_path, scale=5)
+        # Open the PNG image
+        img = Image.open(png_path)
+
     return img
