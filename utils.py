@@ -73,3 +73,17 @@ def plotly_to_png(fig):
         img = Image.open(png_path)
 
     return img
+
+
+def pretty_table(df):
+    from rich.console import Console
+    from rich.table import Table
+    
+    table = Table(show_header=True, header_style="bold magenta")
+    for col in df.columns:
+        table.add_column(col)
+    for row in df.itertuples():
+        table.add_row(*[str(getattr(row, col)) for col in df.columns])
+    
+    console = Console()
+    console.print(table)
