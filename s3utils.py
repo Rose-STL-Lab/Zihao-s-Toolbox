@@ -137,7 +137,13 @@ def download_s3_path(s3_path, local_path='./'):
     """
     if shutil.which('s5cmd'):
         s3_path = s3_path.rstrip('/')
-        s5cmd_command = f"s5cmd cp --sp 's3://{S3_BUCKET_NAME}/{s3_path}/*' {os.path.join(local_path, s3_path)}/"
+        prefix = f"s3://{S3_BUCKET_NAME}/{s3_path}"
+        output = os.popen(f"s5cmd ls {prefix}").read()
+        # Is directory?
+        if "\n" not in output.strip() and os.path.basename(s3_path) in output:
+            s5cmd_command = f"s5cmd cp -n --sp '{prefix}/*' {os.path.join(local_path, s3_path)}/"
+        else:
+            s5cmd_command = f"s5cmd cp -n --sp {prefix} {os.path.join(local_path, s3_path)}"
         run_s5cmd(s5cmd_command)
     else:
         s3_objects = get_s3_objects(s3_path)
@@ -234,7 +240,10 @@ def upload_s3_path(s3_path, local_path='./'):
     if shutil.which('s5cmd'):
         s3_path = s3_path.rstrip('/')
         local_path = os.path.join(local_path, s3_path)
-        s5cmd_command = f"s5cmd cp -n --sp {local_path}/ s3://{S3_BUCKET_NAME}/{s3_path}/"
+        if os.path.isdir(local_path):
+            local_path += os.sep
+            s3_path += '/'
+        s5cmd_command = f"s5cmd cp -n --sp {local_path} s3://{S3_BUCKET_NAME}/{s3_path}"
         run_s5cmd(s5cmd_command)
     else:
         local_files = get_local_files(s3_path, local_path)

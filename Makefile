@@ -28,16 +28,57 @@ HAS_CONDA=True
 endif
 
 ifneq ("$(wildcard config/kube.yaml)","")
-	PROJECT_NAME := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['project_name'])")
-	export PROJECT_NAME
-	USER_NAME := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['user'])")
-	export USER_NAME
-	NAMESPACE := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['namespace'])")
-	export NAMESPACE
+PROJECT_NAME := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['project_name'])")
+export PROJECT_NAME
+USER_NAME := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['user'])")
+export USER_NAME
+NAMESPACE := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['namespace'])")
+export NAMESPACE
+else ifneq ("$(S3_BUCKET_NAME)","")
+PROJECT_NAME := $(S3_BUCKET_NAME)
+export PROJECT_NAME
+else
+PROJECT_NAME := $(shell grep '^name = ' pyproject.toml | head -n 1 | cut -d '"' -f 2)
+export PROJECT_NAME
+endif
+
+ifeq ($(CONDA_PREFIX),)
+POETRY_CHECK := $(shell python -m poetry run echo 2>&1)
+ifneq (,$(findstring No module named poetry,$(POETRY_CHECK)))
+$(error "CONDA_PREFIX not set and poetry not found. `pip install poetry` or activate the conda environment.")
+else ifneq (,$(findstring unable to find a compatible version,$(POETRY_CHECK)))
+$(error "$(POETRY_CHECK)")
+else
+POETRY_PREFIX := $(shell python -m poetry run python -c "import sys; print(sys.exec_prefix)" 2>/dev/null)
+ACTIVATE := source $(POETRY_PREFIX)/bin/activate
+export ACTIVATE
+PYTHON_PREFIX := $(shell python -c "import sys; print(sys.exec_prefix)" 2>/dev/null)
+ifeq ($(POETRY_PREFIX),$(PYTHON_PREFIX))
+PYTHON := set -a && source .env && set +a && python
+else
+PYTHON := set -a && source .env && set +a && python -m poetry run python
+endif
+export PYTHON
+endif
+else
+CONDA_ENV_ROOT := $(if $(findstring /envs/, $(CONDA_PREFIX)),$(shell echo $(CONDA_PREFIX) | sed 's|/envs/.*|/|'),$(CONDA_PREFIX))
+CONDA_ENV_CHECK := $(shell conda env list | grep -q $(PROJECT_NAME) && echo "true" || echo "false")
+ifeq ("$(CONDA_ENV_CHECK)","false")
+$(error "Conda environment $(PROJECT_NAME) not found. Please create the environment using 'make create_environment', or rename your environment to match the project name.")
+endif
+export CONDA_ENV_ROOT
+ACTIVATE := source $(CONDA_ENV_ROOT)/bin/activate $(PROJECT_NAME) --no-stack
+export ACTIVATE
+ifeq ($(CONDA_PREFIX),$(CONDA_ENV_ROOT)envs/$(PROJECT_NAME))
+PYTHON := set -a && source .env && set +a && python
+else
+PYTHON := set -a && source .env && set +a && conda run -n $(PROJECT_NAME) python
+endif
+export PYTHON
 endif
 
 kube:
-ifndef PROJECT_NAME
+ifeq ("$(wildcard config/kube.yaml)","")
 	$(error "config/kube.yaml is not found. kube-related commands will not work.")
 else
 	@mkdir -p build/
@@ -81,26 +122,26 @@ define launch_command
 endef
 
 local: kube
-	$(call launch_command,--mode local)
+	$(PYTHON) launch.py --mode local
 
 job: kube
-	$(call launch_command,--mode job)
+	$(PYTHON) launch.py --mode job
 
 pod: kube
 ifdef pod
-	$(call launch_command,--mode pod --pod $(pod))
+	$(PYTHON) launch.py --mode pod --pod $(pod)
 else
-	$(call launch_command,--mode pod)
+	$(PYTHON) launch.py --mode pod
 endif
 
 dryrun: kube
-	$(call launch_command,--mode dryrun)
+	$(PYTHON) launch.py --mode dryrun
 
 copy: kube
 ifdef pod
-	$(call launch_command,--mode copy_files --pod $(pod))
+	$(PYTHON) launch.py --mode copy_files --pod $(pod)
 else
-	$(call launch_command,--mode copy_files)
+	$(PYTHON) launch.py --mode copy_files
 endif
 
 delete_job:
@@ -125,13 +166,7 @@ delete: kube delete_pod delete_job
 
 # Define a function to call python script with the supplied command
 define s3_command
-	@if [ -n "$(PROJECT_NAME)" ]; then \
-		CONDA_ENV_ROOT=$$(if echo $$CONDA_PREFIX | grep -q '/envs/'; then echo $$CONDA_PREFIX | sed 's|/envs/.*|/|'; else echo $$CONDA_PREFIX; fi); \
-		source $$CONDA_ENV_ROOT/etc/profile.d/conda.sh && \
-		if ls $$CONDA_ENV_ROOT/envs | grep -q "$(PROJECT_NAME)"; then \
-			conda activate $(PROJECT_NAME) --no-stack; \
-		fi; \
-	fi; \
+	echo $(CONDA_ENV_ROOT)
 	python src/toolbox/s3utils.py --$(1) $(file)
 endef
 
@@ -140,6 +175,13 @@ define request_file_input
 $(if $(file),,$(eval file := '$(shell read -p "Please enter the S3 path (support wildcards): " filepath; echo "$$filepath")'))
 endef
 
+bash ?= false
+shell:
+ifeq ($(bash)$(wildcard $(HOME)/.oh-my-zsh),false$(HOME)/.oh-my-zsh)
+	@zsh --no-rcs -i --nozle <<< 'export ZSH=$$HOME/.oh-my-zsh; ZSH_THEME="robbyrussell"; plugins=(git); [ -d "$$HOME/.zsh/pure" ] && { fpath+=("$$HOME/.zsh/pure"); autoload -U promptinit; promptinit; prompt pure; }; source $$ZSH/oh-my-zsh.sh; alias make="make --no-print-directory"; $(ACTIVATE); set -a; source .env; set +a; exec < /dev/tty; setopt zle'
+else
+	@bash --rcfile <(echo '. src/toolbox/.bashrc; alias make="make --no-print-directory"; $(ACTIVATE); set -a; source .env; set +a;')
+endif
 overwrite ?= false
 
 # Default target for prompting file input
@@ -148,16 +190,16 @@ prompt_for_file:
 
 ## Interactive mode with s3 file or folder
 interactive: prompt_for_file
-	$(call s3_command,interactive)
+	@$(PYTHON) src/toolbox/s3utils.py --interactive $(file)
 
 ## Find s3 custom file or folder
 find: prompt_for_file
-	$(call s3_command,find)
+	@$(PYTHON) src/toolbox/s3utils.py --find $(file)
 fd: find
 
 ## List s3 custom file or folder
 list: prompt_for_file
-	$(call s3_command,list)
+	@$(PYTHON) src/toolbox/s3utils.py --list $(file)
 ls: list
 
 ## Download custom file or folder
@@ -165,20 +207,20 @@ download: prompt_for_file
 ifeq ($(overwrite),true)
 	rm -rf $(file)
 endif
-	$(call s3_command,download)
+	@$(PYTHON) src/toolbox/s3utils.py --download $(file)
 down: download
 
 ## Upload custom file or folder
 upload: prompt_for_file
 ifeq ($(overwrite),true)
-	$(call s3_command,remove)
+	@$(PYTHON) src/toolbox/s3utils.py --remove $(file)
 endif
-	$(call s3_command,upload)
+	@$(PYTHON) src/toolbox/s3utils.py --upload $(file)
 up: upload
 
 ## Remove s3 custom file or folder
 remove: prompt_for_file
-	$(call s3_command,remove)
+	@$(PYTHON) src/toolbox/s3utils.py --remove $(file)
 rm: remove
 
 #################################################################################
@@ -186,15 +228,25 @@ rm: remove
 #################################################################################
 
 ## Set up python interpreter environment
-create_environment: kube
-	conda-lock install --name ${PROJECT_NAME}
-	conda run -n ${PROJECT_NAME} poetry install --no-root
+create_environment:
+	@conda env create -n $(PROJECT_NAME) --file environment.yml
+	@poetry install
 
 ## Test python environment is setup correctly
 test_environment:
-	@$(PYTHON_INTERPRETER) src/toolbox/testenv.py
-	@poetry check
+	@python -m poetry check
+	@echo ">>> Testing python environment..."
+	@echo ">>> Python executable: $$(which python)"
+	@echo ">>> Python version: $$(python --version)"
+	@python -m poetry install | tee poetry_output.txt
+	@if grep -q "No dependencies" poetry_output.txt; then \
+		echo ">>> All dependencies are present."; \
+	else \
+		echo ">>> Some dependencies are missing. Please check the output above."; \
+		exit 1; \
+	fi
 	@echo ">>> Poetry is setup correctly!"
+	@echo ">>> Run make shell to activate the environment."
 
 #################################################################################
 # Self Documenting Commands                                                     #
