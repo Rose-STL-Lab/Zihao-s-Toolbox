@@ -6,6 +6,7 @@ from botocore.exceptions import ClientError
 from botocore import UNSIGNED
 from botocore.client import Config
 import shutil
+import sys
 
 
 S3_ENDPOINT_URL = os.getenv('S3_ENDPOINT_URL')
@@ -24,10 +25,21 @@ else:
 
 def run_s5cmd_and_log(s5cmd_command, log_file_path="download.log"):
     os.system(
-        s5cmd_command + 
-        " 2>&1 | awk 'BEGIN{RS=\" \"; ORS=\"\"} {print $0 (/\\n/ ? \"\" : \" \"); if(tolower($0) ~ /%/) print \"\\n\"}' | tee -a " +
-        log_file_path
+        s5cmd_command
+        + ' 2>&1 | awk \'BEGIN{RS=" "; ORS=""} {print $0 (/\\n/ ? "" : " "); if(tolower($0) ~ /%/) print "\\n"}\' | tee -a '
+        + log_file_path
     )
+
+
+def run_s5cmd_interactive(s5cmd_command):
+    os.system(s5cmd_command)
+
+
+def run_s5cmd(s5cmd_command, log_file_path="download.log"):
+    if sys.stdin.isatty():
+        run_s5cmd_interactive(s5cmd_command)
+    else:
+        run_s5cmd_and_log(s5cmd_command, log_file_path)
 
 
 def get_local_files(s3_path, local_path):
@@ -117,8 +129,8 @@ def download_s3_objects(s3_objects, local_path='./'):
             print(f"Downloaded {s3_key} to {local_file_path}")
         except ClientError as e:
             print(f"Failed to download {s3_key}: {e}")
-            
-            
+
+
 def download_s3_path(s3_path, local_path='./'):
     """
     Download all files in the S3 path to the local file system.
@@ -126,10 +138,11 @@ def download_s3_path(s3_path, local_path='./'):
     if shutil.which('s5cmd'):
         s3_path = s3_path.rstrip('/')
         s5cmd_command = f"s5cmd cp --sp 's3://{S3_BUCKET_NAME}/{s3_path}/*' {os.path.join(local_path, s3_path)}/"
-        run_s5cmd_and_log(s5cmd_command)
-    s3_objects = get_s3_objects(s3_path)
-    download_s3_objects(s3_objects, local_path)
-            
+        run_s5cmd(s5cmd_command)
+    else:
+        s3_objects = get_s3_objects(s3_path)
+        download_s3_objects(s3_objects, local_path)
+
 
 def list_s3_objects(s3_path):
     """
@@ -165,8 +178,8 @@ def delete_local_files(local_files):
         if not os.listdir(folder):
             os.rmdir(folder)
             print(f"Deleted {folder}")
-            
-            
+
+
 def print_folders(files):
     """
     Print folders of files, assuming the files are sorted by folder.
@@ -188,8 +201,8 @@ def remove_s3_objects(objects_to_delete):
         s3_client.delete_objects(Bucket=S3_BUCKET_NAME, Delete={'Objects': objects_to_delete})
         for obj in objects_to_delete:
             print(f"Removed {obj['Key']} from S3")
-            
-            
+
+
 def remove_s3_path(s3_path):
     """
     Remove all files in the S3 path.
@@ -212,7 +225,7 @@ def upload_s3_objects(local_files, local_path='./'):
             except ClientError:
                 s3_client.upload_file(local_file, S3_BUCKET_NAME, s3_key)
                 print(f"Uploaded {local_file} to {s3_key}")
-                
+
 
 def upload_s3_path(s3_path, local_path='./'):
     """
@@ -222,7 +235,7 @@ def upload_s3_path(s3_path, local_path='./'):
         s3_path = s3_path.rstrip('/')
         local_path = os.path.join(local_path, s3_path)
         s5cmd_command = f"s5cmd cp -n --sp {local_path}/ s3://{S3_BUCKET_NAME}/{s3_path}/"
-        run_s5cmd_and_log(s5cmd_command)
+        run_s5cmd(s5cmd_command)
     else:
         local_files = get_local_files(s3_path, local_path)
         upload_s3_objects(local_files, local_path)

@@ -140,6 +140,8 @@ define request_file_input
 $(if $(file),,$(eval file := '$(shell read -p "Please enter the S3 path (support wildcards): " filepath; echo "$$filepath")'))
 endef
 
+overwrite ?= false
+
 # Default target for prompting file input
 prompt_for_file:
 	$(call request_file_input)
@@ -160,19 +162,19 @@ ls: list
 
 ## Download custom file or folder
 download: prompt_for_file
+ifeq ($(overwrite),true)
+	rm -rf $(file)
+endif
 	$(call s3_command,download)
 down: download
 
 ## Upload custom file or folder
 upload: prompt_for_file
+ifeq ($(overwrite),true)
+	$(call s3_command,remove)
+endif
 	$(call s3_command,upload)
 up: upload
-
-## Upload and possibly overwrite custom file or folder
-overwrite: prompt_for_file
-	$(call s3_command,remove)
-	$(call s3_command,upload)
-ow: overwrite
 
 ## Remove s3 custom file or folder
 remove: prompt_for_file
