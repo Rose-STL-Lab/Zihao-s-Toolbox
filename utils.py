@@ -87,3 +87,62 @@ def pretty_table(df):
     
     console = Console()
     console.print(table)
+
+
+def compare_nested_dicts(d1, d2, path=""):
+    """Compare nested dictionaries d1 and d2. Returns True if all nested entries in d2 are equal to the corresponding entries in d1."""
+    if isinstance(d1, dict) and isinstance(d2, dict):
+        for key in d2:
+            if key not in d1:
+                return False
+            if not compare_nested_dicts(d1[key], d2[key], path + str(key) + " -> "):
+                return False
+        return True
+    else:
+        return d1 == d2
+    
+
+def loadable_artifacts(
+    hparams: dict,
+    artifact_type: str,
+    artifact_name: str,
+):
+    """Find all artifacts of a given type and name that have the same hparams as the given dictionary."""
+    import wandb 
+    from loguru import logger
+
+    api = wandb.Api()
+    artifacts = api.artifacts(type_name=artifact_type, name=artifact_name)
+    loadable = {}
+    for art in reversed(artifacts):
+        run = art.logged_by()
+        conf = run.config
+        if compare_nested_dicts(conf, hparams):
+            loadable[run.id] = {
+                'artifact': art,
+                'conf': run.config,
+                'tags': run.tags
+            }
+            logger.info(f"Found matching config in run {run.id}, with tags{run.tags}")
+    return loadable
+
+
+def load_wandb_artifact(
+    model_cls: type,
+    artifact  # wandb.Artifact
+):
+    """Load single artifact from wandb and return the model."""
+    from loguru import logger
+    import tempfile
+    import os
+    
+    with tempfile.TemporaryDirectory() as tmp:
+        # Download the checkpoint to the temporary file
+        logger.debug(f"Downloading artifact {artifact.name} to {tmp}...")
+        artifact.download(tmp)
+        # Assuming there's only one file in the directory, get its name
+        tmpfile_name = os.listdir(tmp)[0]
+        # Construct the full path to the file
+        tmpfile_path = os.path.join(tmp, tmpfile_name)
+        model = model_cls.load_from_checkpoint(checkpoint_path=tmpfile_path)
+    return model
