@@ -42,6 +42,8 @@ PROJECT_NAME := $(shell grep '^name = ' pyproject.toml | head -n 1 | cut -d '"' 
 export PROJECT_NAME
 endif
 
+LOADENV := set -a && source .env && set +a
+
 ifeq ($(CONDA_PREFIX),)
 POETRY_CHECK := $(shell python -m poetry run echo 2>&1)
 ifneq (,$(findstring No module named poetry,$(POETRY_CHECK)))
@@ -54,9 +56,9 @@ ACTIVATE := source $(POETRY_PREFIX)/bin/activate
 export ACTIVATE
 PYTHON_PREFIX := $(shell python -c "import sys; print(sys.exec_prefix)" 2>/dev/null)
 ifeq ($(POETRY_PREFIX),$(PYTHON_PREFIX))
-PYTHON := set -a && source .env && set +a && python
+PYTHON := python
 else
-PYTHON := set -a && source .env && set +a && python -m poetry run python
+PYTHON := python -m poetry run python
 endif
 export PYTHON
 endif
@@ -70,9 +72,9 @@ export CONDA_ENV_ROOT
 ACTIVATE := source $(CONDA_ENV_ROOT)/bin/activate $(PROJECT_NAME) --no-stack
 export ACTIVATE
 ifeq ($(CONDA_PREFIX),$(CONDA_ENV_ROOT)envs/$(PROJECT_NAME))
-PYTHON := set -a && source .env && set +a && python
+PYTHON := python
 else
-PYTHON := set -a && source .env && set +a && conda run -n $(PROJECT_NAME) python
+PYTHON := conda run -n $(PROJECT_NAME) python
 endif
 export PYTHON
 endif
@@ -100,6 +102,13 @@ lint:
 ## Debugging
 test:
 	echo "Hello World!"
+
+## Run background task with tmux
+target ?= test
+tmux:
+	$(if $(shell grep -q '^$(target):' $(MAKEFILE_LIST) && echo true), \
+		tmux new-session -d -s $(target) "$(MAKE) $(target)", \
+		$(error Target '$(target)' does not exist in the Makefile))
 
 #################################################################################
 # Baseline + other related                                                      #
