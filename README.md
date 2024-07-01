@@ -312,6 +312,8 @@ gpu_whitelist:
   - <usable-gpu-list>
 hostname_blacklist:
   - <unusable-node-hostnames-list>
+## High-performance GPU specified in https://ucsd-prp.gitlab.io/userdocs/running/gpu-pods/#choosing-gpu-type. Example: "a100", "rtxa6000". Once set, gpu_whitelist and gpu_blacklist will be ignored. 
+special_gpu: str
 ```
 
 `gpu_whitelist` and `gpu_blacklist` cannot be both set. If gpu_whitelist is set, only the specified GPUs will be used. If gpu_blacklist is set, all GPUs except the specified ones will be used. The same applies to `hostname_blacklist` and `hostname_whitelist`.
@@ -323,18 +325,10 @@ Example GPU list:
   - NVIDIA-RTX-A4000
   - NVIDIA-RTX-A5000
   - Quadro-RTX-6000
-  - NVIDIA-A40
-  - NVIDIA-RTX-A6000
-  - Quadro-RTX-8000
   - NVIDIA-GeForce-RTX-3090
   - NVIDIA-GeForce-GTX-1080-Ti
   - NVIDIA-GeForce-GTX-2080-Ti
   - NVIDIA-A10
-  - NVIDIA-A100-SXM4-80GB
-  - Tesla-V100-SXM2-32GB
-  - NVIDIA-A100-PCIE-40GB
-  - NVIDIA-A100-SXM4-80GB
-  - NVIDIA-A100-80GB-PCIe
 ```
 
 Ensure consistency in project_name across your GitLab repository (<project_name>.git), conda environment (envs/<project_name>), image pull secret (<project_name>-read-registry), and S3 configuration (<project_name>-s3cfg). Avoid hyphens and underscores in project_name.

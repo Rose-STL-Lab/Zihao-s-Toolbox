@@ -176,6 +176,7 @@ def create_config(
     hostname_whitelist: List[str] = None,
     gpu_blacklist: List[str] = None,
     gpu_whitelist: List[str] = None,
+    special_gpu: str = None,
 
     # Files to map
     file: List[str] = [],
@@ -219,10 +220,13 @@ def create_config(
         else:
             image_pull_secrets = f"{project_name}-read-registry"
     if gpu_blacklist is None and gpu_whitelist is None:
-        if "gpu_blacklist" in settings:
+        if special_gpu is None and "gpu_blacklist" in settings:
             gpu_blacklist = settings["gpu_blacklist"]
-        if "gpu_whitelist" in settings:
+        if special_gpu is None and "gpu_whitelist" in settings:
             gpu_whitelist = settings["gpu_whitelist"]
+    if special_gpu is not None:
+        gpu_blacklist = None
+        gpu_whitelist = None
     if hostname_blacklist is None and hostname_whitelist is None:
         if "hostname_blacklist" in settings:
             hostname_blacklist = settings["hostname_blacklist"]
@@ -324,13 +328,21 @@ source src/toolbox/s3region.sh
                 ],
                 "resources": {
                     "limits": {
-                        "nvidia.com/gpu": str(gpu_count),
+                        **(
+                            {"nvidia.com/gpu": str(gpu_count)} 
+                            if special_gpu is None 
+                            else {f"nvidia.com/{special_gpu}": str(gpu_count)}
+                        ),
                         "memory": f"{int(memory * 1.5)}G",
                         "cpu": str(int(cpu_count * 1.5)),
                         **({"ephemeral-storage": f"{ephermal_storage}G"} if ephermal_storage != 0 else {})
                     },
                     "requests": {
-                        "nvidia.com/gpu": str(gpu_count),
+                        **(
+                            {"nvidia.com/gpu": str(gpu_count)} 
+                            if special_gpu is None 
+                            else {f"nvidia.com/{special_gpu}": str(gpu_count)}
+                        ),
                         "memory": f"{memory}G",
                         "cpu": str(cpu_count),
                         **({"ephemeral-storage": f"{ephermal_storage}G"} if ephermal_storage != 0 else {})

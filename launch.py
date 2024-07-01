@@ -18,7 +18,7 @@ def modify_pod_name(pod_name):
     if '-' in pod_name:
         base_name, number = pod_name.rsplit('-', 1)
         if number.isdigit():
-            return f"{base_name}-{int(number)+1}"
+            return f"{base_name}-{int(number) + 1}"
     return f"{pod_name}-1"  # Default case if no numeric suffix exists
 
 
@@ -189,15 +189,31 @@ if __name__ == '__main__':
             for key in run_settings:
                 if key not in ['model', 'dataset', 'hparam']:
                     raise ValueError(f"Unknown key '{key}' in run configuration")
-                for model in run_settings['model']:
-                    if model not in launch_settings['model']:
-                        raise ValueError(f"Model '{run_settings['model']}' not found in model configuration") 
-                for dataset in run_settings['dataset']:
-                    if dataset not in launch_settings['dataset']:
-                        raise ValueError(f"Dataset '{run_settings['dataset']}' not found in dataset configuration")
-        
+                if 'model' in run_settings:
+                    for model in run_settings['model']:
+                        if model not in launch_settings['model']:
+                            raise ValueError(f"Model '{run_settings['model']}' not found in model configuration") 
+                if 'dataset' in run_settings:
+                    for dataset in run_settings['dataset']:
+                        if dataset not in launch_settings['dataset']:
+                            raise ValueError(f"Dataset '{run_settings['dataset']}' not found in dataset configuration")
+            
         if 'run' in launch_settings and launch_settings['run'] is not None:
             run_configs = launch_settings['run']
+            if 'model' not in run_configs:
+                if type(run_configs) is dict:
+                    run_configs['model'] = list(launch_settings['model'].keys())
+                else:
+                    for run_config in run_configs:
+                        if 'model' not in run_config:
+                            run_config['model'] = list(launch_settings['model'].keys())
+            if 'dataset' not in run_configs:
+                if type(run_configs) is dict:
+                    run_configs['dataset'] = list(launch_settings['dataset'].keys())
+                else:
+                    for run_config in run_configs:
+                        if 'dataset' not in run_config:
+                            run_config['dataset'] = list(launch_settings['dataset'].keys())
         else:
             run_configs = {
                 "model": list(launch_settings['model'].keys()),
