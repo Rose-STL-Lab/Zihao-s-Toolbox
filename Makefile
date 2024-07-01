@@ -103,8 +103,8 @@ lint:
 test:
 	echo "Hello World!"
 
-## Run background task with tmux
 target ?= test
+## Run background task with tmux
 tmux:
 	$(if $(shell grep -q '^$(target):' $(MAKEFILE_LIST) && echo true), \
 		tmux new-session -d -s $(target) "$(MAKE) $(target)", \
