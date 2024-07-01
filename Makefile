@@ -150,6 +150,12 @@ endif
 dryrun: kube
 	$(PYTHON) launch.py --mode dryrun
 
+local-dryrun: kube
+	$(PYTHON) launch.py --mode local-dryrun
+
+pod-dryrun: kube
+	$(PYTHON) launch.py --mode pod-dryrun
+
 copy: kube
 ifdef pod
 	$(PYTHON) launch.py --mode copy_files --pod $(pod)

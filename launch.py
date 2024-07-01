@@ -226,7 +226,7 @@ if __name__ == '__main__':
                 validate_types(run_config)
 
     mode = args.mode
-    if mode == "pod" or mode == "copy_files":
+    if "pod" in mode or mode == "copy_files":
         name = f"{settings['project_name']}-interactive-pod"
         
         if "model" in launch_settings:
@@ -263,7 +263,7 @@ if __name__ == '__main__':
             else:
                 raise ValueError("Cannot copy files without a pod.")
         
-        elif mode == "pod":
+        elif "pod" in mode:
             # Handle pod creation
             while check_pod_exists(pod_name, settings['namespace']):
                 print(f"Pod '{pod_name}' already exists. Modifying the name to avoid conflicts.")
@@ -271,7 +271,11 @@ if __name__ == '__main__':
             config['metadata']['name'] = pod_name
             with open(f"build/{name}.yaml", "w") as f:
                 yaml.dump(config, f)
-            os.system(f"kubectl apply -f build/{name}.yaml")
+            if mode == "pod":
+                os.system(f"kubectl apply -f build/{name}.yaml")
+            else:
+                assert mode == "pod-dryrun", "Unrecognized mode"
+                print(f"Pod configuration written to build/{name}.yaml")
     else:
         if type(run_configs) is dict:
             batch(

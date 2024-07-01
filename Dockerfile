@@ -20,7 +20,7 @@ RUN git clone --depth=1 PROJECT_SSH_URL
 WORKDIR /root/PROJECT_NAME/
 
 # Handle git submodule
-RUN git submodule foreach --recursive git reset --hard
+RUN git submodule update --init --recursive
 
 # Install conda environment
 RUN conda update --all

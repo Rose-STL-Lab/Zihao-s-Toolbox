@@ -155,6 +155,7 @@ def create_config(
     memory: int = 32,
     env: dict = {},
     project_name: str = None,
+    conda_env_name: str = None,
     interactive: bool = False,
     server_command: str = "sleep infinity",
     startup_script: str = None,
@@ -167,6 +168,7 @@ def create_config(
     # User config
     namespace: str = None,
     user: str = None,
+    gitlab_user: str = None,
     image: str = None,
     image_pull_secrets: str = None,
     prefix: str = None,
@@ -201,8 +203,15 @@ def create_config(
         namespace = settings["namespace"]
     if user is None:
         user = settings["user"]
+    if gitlab_user is None:
+        if "gitlab_user" in settings:
+            gitlab_user = settings["gitlab_user"]
+        else:
+            gitlab_user = user
     if project_name is None:
         project_name = settings["project_name"]
+    if conda_env_name is None:
+        conda_env_name = project_name
     if image is None:
         if "image" in settings:
             image = settings["image"]
@@ -211,9 +220,8 @@ def create_config(
                 if "registry_host" in settings:
                     registry_host = settings["registry_host"]
                 else:
-                    raise ValueError(
-                        "[Error] registry_host is a required field in kube.yaml if image undefined")
-            image = f"{settings['registry_host']}/{user}/{project_name}:latest"
+                    registry_host = "gitlab-registry.nrp-nautilus.io"
+            image = f"{registry_host}/{gitlab_user}/{project_name}:latest"
     if image_pull_secrets is None:
         if "image_pull_secrets" in settings:
             image_pull_secrets = settings["image_pull_secrets"]
@@ -239,27 +247,27 @@ def create_config(
             if "conda_home" in settings:
                 conda_home = settings['conda_home']
             else:
-                raise ValueError(("[Error] conda_home is a required field in kube.yaml"
-                                  "if startup_script undefined"))
+                conda_home = "/opt/conda"
 
             if ssh_host is None or ssh_port is None:
                 if "ssh_host" in settings and "ssh_port" in settings:
                     ssh_port = settings["ssh_port"]
                     ssh_host = settings["ssh_host"]
                 else:
-                    raise ValueError(("[Error] ssh_host and ssh_port are required fields in kube.yaml "
-                                      "if startup_script undefined"))
+                    ssh_port = "30622"
+                    ssh_host = "gitlab-ssh.nrp-nautilus.io"
             startup_script = (
                 f"""#!/bin/bash
 mkdir -p config
-ssh-keyscan github.com >> /root/.ssh/known_hosts
-ssh-keyscan -t ecdsa -p {ssh_port} -H {ssh_host} >> /root/.ssh/known_hosts
 git pull
 git submodule update --init --recursive
-echo "conda activate {project_name}; source src/toolbox/s3region.sh" >> ~/.bashrc
-export PATH="{conda_home}/envs/{project_name}/bin/:$PATH"
-chmod +x src/toolbox/s3region.sh
-source src/toolbox/s3region.sh
+echo "conda activate {conda_env_name}; " >> ~/.bashrc
+export PATH="{conda_home}/envs/{conda_env_name}/bin/:$PATH"
+echo 'if [ -f "$HOME/src/toolbox/s3region.sh" ]; then source "$HOME/src/tool outbox/s3region.sh"; fi' >> ~/.bashrc
+if [ -f src/toolbox/s3region.sh ]; then
+    chmod +x src/toolbox/s3region.sh
+    source src/toolbox/s3region.sh
+fi
 """
             )
     if '.env' not in file:
@@ -270,6 +278,9 @@ source src/toolbox/s3region.sh
         file.append('config/kube.yaml')
 
     startup_script += "\n".join(file_to_script(file))
+    # Save startup script to build/
+    with open(f"build/{name}.sh", "w") as f:
+        f.write(startup_script)
     startup_encoding = base64.b64encode(
         bytes(startup_script, 'utf-8')).decode('utf-8')
     load_startup_script = f"echo {startup_encoding} | base64 -d > startup.sh && chmod +x startup.sh && source startup.sh; "
@@ -320,7 +331,7 @@ source src/toolbox/s3region.sh
                     "conda",
                     "run",
                     "-n",
-                    project_name,
+                    conda_env_name,
                     "/bin/bash",
                     "-c",
                     ((load_startup_script + server_command)
@@ -425,9 +436,14 @@ source src/toolbox/s3region.sh
     if interactive:
         container = template["containers"][0]
         for entry in ["limits", "requests"]:
-            container["resources"][entry]["nvidia.com/gpu"] = "1"
-            container["resources"][entry]["memory"] = "32G"
-            container["resources"][entry]["cpu"] = "5"
+            for key in container["resources"][entry]:
+                if key.startswith("nvidia.com/") and int(container["resources"][entry][key]) > 2:
+                    container["resources"][entry][key] = "2"
+                    break
+            if "memory" in container["resources"][entry] and int(container["resources"][entry]["memory"][:-1]) > 32:
+                container["resources"][entry]["memory"] = "32G"
+            if "cpu" in container["resources"][entry] and int(container["resources"][entry]["cpu"]) > 16:
+                container["resources"][entry]["cpu"] = "16"
         config = {
             "apiVersion": "v1",
             "kind": "Pod",
@@ -530,13 +546,14 @@ def batch(
     mode: str
         mode=job: Create jobs in the Kubernetes cluster
         mode=local: Runs jobs locally
-        mode=dryrun: Only creates the job files without running them
+        mode=dryrun: Only creates the job files without deploying them
+        mode=local-dryrun: Only prints the local commands without running them
     """
     # Initialization
     if project_name is None:
         project_name = settings["project_name"]
 
-    assert mode in ["job", "local", "dryrun"]
+    assert mode in ["job", "local", "dryrun", "local-dryrun", "pod-dryrun"]
 
     if "hparam" in run_configs:
         for key, val in run_configs["hparam"].items():
@@ -608,7 +625,7 @@ def batch(
                                 f"[Warning] Key {key}={config_kwargs[key]} is not allowed in {name}. Ignoring it.")
                             del config_kwargs[key]
 
-                    if mode == "local":
+                    if "local" in mode:
                         if "local_command" in config_kwargs:
                             model_configs[model]['command'] = model_configs[model]['local_command']
                         command = fill_val({'_': model_configs[model]['command']}, hparam_dict)[
@@ -622,10 +639,13 @@ def batch(
                             command = 'export $(grep -v \'^#\' .env | xargs -0) && ' + command
                         else:
                             raise Exception("Unsupported OS")
-                        print(
-                            f"Running {json.dumps(hparam_dict, indent=4)} ... \n```\n{command}\n```")
-                        os.system(command)
-                        continue
+                        if mode == "local":
+                            print(f"Running {json.dumps(hparam_dict, indent=4)} ... \n```\n{command}\n```")
+                            os.system(command)
+                            continue
+                        else:
+                            print(command)
+                            continue
 
                     if "local_command" in config_kwargs:
                         del config_kwargs["local_command"]

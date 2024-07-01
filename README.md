@@ -217,6 +217,8 @@ Uploaded data/1.txt to data/1.txt
 Uploaded data/2.txt to data/2.txt
 ```
 
+If you have installed [s5cmd](https://github.com/peak/s5cmd), `make` will automatically use it as the backend for S3 operations to improve performance. Otherwise, it will use [boto3](https://github.com/boto/boto3).
+
 For users without an S3 bucket, request access from the Nautilus matrix chat or use buckets provided by `rosedata.ucsd.edu`. You don't need a bucket for this tutorial.
 
 ### Remote Pod
@@ -269,9 +271,12 @@ Finally, run `make delete` to cleanup all workloads.
 ```yaml
 ##### Project-wise configuration, should be the same across all experiments
 # Will not be overwritten by the launch.yaml
-project_name: str, required
-user: str, required
-namespace: str, required
+project_name: str, required, used for k8s resource name, env name and more
+user:         str, required, k8s user name
+namespace:    str, required, k8s namespace
+
+# If you want to use a different environment name
+conda_env_name: str, default to <project_name>
 
 ##### Other field, can be overwritten in launch.yaml #####
 
@@ -280,29 +285,30 @@ namespace: str, required
 env: 
   <env-key>: <env-value>
 
-## [required] If startup_script is not defined, the following fields are required to automatically keep your git repo up-to-date at startup
+## If startup_script is not explicitly specified, the script will automatically pull the latest git repo using ssh_host and ssh_port, and activate the default environment using conda_home and conda_env_name.
 startup_script: str
-conda_home: str
-ssh_host: str
-ssh_port: int
+conda_home: str, default to /opt/conda
+ssh_host:   str, default to gitlab-ssh.nrp-nautilus.io 
+ssh_port:   int, default to 30622
 
-# Will override sleep-infinity when running interactive pod
-server_command: str
+# Command for interactive pod
+server_command: str, default to `sleep infinity`
 
 ## For CPU and Memory, the limit will be twice the requested
-gpu_count: int
-cpu_count: int
-memory: int 
+gpu_count:        int, default to 0
+cpu_count:        int, in cores, default to 5
+ephermal_storage: int, in gigabytes, default to 100
+memory:           int, in gigabytes, default to 32
 
 ## Mount PVC to path
 volumes:
   <pvc-name>: <mount-path>
 
-## If image is not defined, the host are required to automatically find your project image link
-image: str
-registry_host: str
-## If your image is private and your pull secret name does not default to <project-name>-read-registry
-image_pull_secrets: str
+## Image pull related
+image:              str, default to <registry_host>/<gitlab_user>/<project_name>:latest
+gitlab_user:        str, default to <user>
+registry_host:      str, default to gitlab-registry.nrp-nautilus.io
+image_pull_secrets: str, default to <project-name>-read-registry
 ## Prefix of the names of your workloads
 prefix: str
 ## Will tolerate no-schedule taints
@@ -518,12 +524,14 @@ docker build -t gitlab-registry.nrp-nautilus.io/<user-name>/<project-name>:<cust
 docker login gitlab-registry.nrp-nautilus.io
 # Enter your write-registry username and password
 docker push gitlab-registry.nrp-nautilus.io/<user-name>/<project-name>:<custom-tag>
+docker tag gitlab-registry.nrp-nautilus.io/<user-name>/<project-name>:<custom-tag> gitlab-registry.nrp-nautilus.io/<user-name>/<project-name>:latest
+docker push gitlab-registry.nrp-nautilus.io/<user-name>/<project-name>:latest
 ```
 
 10. If you encountered any error, you may comment out error lines in the Dockerfile and then run
 ```bash
-docker run -it /bin/bash gitlab-registry.nrp-nautilus.io/<project-name>:<custom-tag> /bin/bash
+docker run -it /bin/bash gitlab-registry.nrp-nautilus.io/<user-name>/<project-name>:<custom-tag> /bin/bash
 ```
   to enter the image and test the following command manually.
 
-11. After the image is successfully pushed, you can delete all dangling images by running `docker rmi $(docker images -f "dangling=true" -q)`.
+11. After the image is successfully pushed, you can free space and delete all built images by running `docker images | grep '<project-name>' | awk '{print $3}' | xargs docker rmi` and `docker rmi $(docker images -f "dangling=true" -q)`.
