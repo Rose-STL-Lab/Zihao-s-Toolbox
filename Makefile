@@ -30,8 +30,8 @@ endif
 ifneq ("$(wildcard config/kube.yaml)","")
 PROJECT_NAME := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['project_name'])")
 export PROJECT_NAME
-USER_NAME := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['user'])")
-export USER_NAME
+USERNAME := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['user'])")
+export USERNAME
 NAMESPACE := $(shell python -c "import yaml; print(yaml.safe_load(open('config/kube.yaml'))['namespace'])")
 export NAMESPACE
 else ifneq ("$(S3_BUCKET_NAME)","")
@@ -159,17 +159,17 @@ endif
 
 delete_job:
 	@echo "You are going to delete the following jobs:"
-	@kubectl -n $(NAMESPACE) get jobs -l user=$(USER_NAME) -l project=$(PROJECT_NAME)
+	@kubectl -n $(NAMESPACE) get jobs -l user=$(USERNAME) -l project=$(PROJECT_NAME)
 	@read -p "Are you sure you want to continue? [y/N]: " confirm && [ "$$confirm" = "y" ] || exit 1
 	@echo "Deleting jobs..."
-	@kubectl -n $(NAMESPACE) delete jobs -l user=$(USER_NAME) -l project=$(PROJECT_NAME)
+	@kubectl -n $(NAMESPACE) delete jobs -l user=$(USERNAME) -l project=$(PROJECT_NAME)
 
 delete_pod:
 	@echo "You are going to delete the following pods:"
-	@kubectl -n $(NAMESPACE) get pods -l user=$(USER_NAME) -l project=$(PROJECT_NAME)
+	@kubectl -n $(NAMESPACE) get pods -l user=$(USERNAME) -l project=$(PROJECT_NAME)
 	@read -p "Are you sure you want to continue? [y/N]: " confirm && [ "$$confirm" = "y" ] || exit 1
 	@echo "Deleting pods..."
-	@kubectl -n $(NAMESPACE) delete pods -l user=$(USER_NAME) -l project=$(PROJECT_NAME)
+	@kubectl -n $(NAMESPACE) delete pods -l user=$(USERNAME) -l project=$(PROJECT_NAME)
 
 delete: kube delete_pod delete_job
 

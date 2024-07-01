@@ -11,6 +11,8 @@ ADD .ssh/id_rsa /root/.ssh/id_rsa
 ADD .ssh/config /root/.ssh/config
 ADD .ssh/known_hosts /root/.ssh/known_hosts
 RUN chmod 400 /root/.ssh/id_rsa
+RUN chmod 400 /root/.ssh/config
+RUN chmod 400 /root/.ssh/known_hosts
 
 # Pull the latest project
 WORKDIR /root/
@@ -18,9 +20,7 @@ RUN git clone --depth=1 PROJECT_SSH_URL
 WORKDIR /root/PROJECT_NAME/
 
 # Handle git submodule
-RUN git config --global url."https://github.com/".insteadOf git@github.com:; \
-    git config --global url."https://".insteadOf git://; \
-    git submodule update --init --recursive
+RUN git submodule foreach --recursive git reset --hard
 
 # Install conda environment
 RUN conda update --all

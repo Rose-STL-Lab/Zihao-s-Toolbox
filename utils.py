@@ -68,7 +68,7 @@ def plotly_to_png(fig):
         with open(svg_path, "wb") as tmp_svg:
             tmp_svg.write(svg)
         # Convert SVG to PNG using cairosvg
-        cairosvg.svg2png(url=svg_path, write_to=png_path, scale=5)
+        cairosvg.svg2png(url=svg_path, write_to=png_path, scale=2)
         # Open the PNG image
         img = Image.open(png_path)
 

@@ -445,7 +445,7 @@ Host gitlab-ssh.nrp-nautilus.io
   - DOCKER_USERNAME: the write `username` from the previous step.
   - GIT_DEPLOY_KEY: base64 encode the **read** deploy key you created (`base64 -i example`, don't include any new lines).
   - GITLAB_DEPLOY_KEY: base64 encode the **write** deploy key you created (`base64 -i example-write`, don't include any new lines).
-  - GITLAB_USER_NAME: your gitlab user name, which is in the middle of your gitlab repo URL.
+  - GITLAB_USERNAME: your gitlab user name, which is in the middle of your gitlab repo URL.
 7. Create the following files under your repo:
   - `environment.yml`
 ```yaml
@@ -480,3 +480,56 @@ poetry add numpy==1.26.2
 This procedure creates the lock file, `poetry.lock`. Commit it to the git repository. Push to the Github will compile the image. Any modification of the environment related files (see workflow file) will trigger the image update. 
 
 You may check out `https://github.com/ZihaoZhou/example` and `https://gitlab.nrp-nautilus.io/ZihaoZhou/example` as a reference.
+
+### (Alternative) Manual Docker Build
+
+If you:
+- Don't need CI
+- Don't have full control over the repository
+- Use different branch than `main` or `master`
+- Are not allowed to use Github, or
+- Just want to build the image manually,
+
+You can follow the following steps.
+
+1. Create a git repo at Nautilus Gitlab ... (same as above)
+2. Create a git repo at Github or any other git hosting service ...
+3. Generate a read SSH key pair ...
+4. Generate a write SSH key pair ...
+5. Add the public key to Gitlab ...
+6. Create folder `.ssh/` in your working directory, copy your SSH read private key to `.ssh/` and rename it to `id_rsa`. Create the `.ssh/config` file with the following content:
+```config
+Host gitlab-ssh.nrp-nautilus.io
+    HostName gitlab-ssh.nrp-nautilus.io
+    User git
+    Port 30622
+    IdentityFile ~/.ssh/id_rsa
+
+Host github.com
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/id_rsa
+...
+(or other git hosting service)
+```
+> **Warning**: Add `/.ssh*` to your `.gitignore` to avoid uploading your secret credentials to the repository.
+
+7. Run `ssh-keyscan -p 30622 gitlab-ssh.nrp-nautilus.io >> .ssh/known_hosts`, `ssh-keyscan github.com >> .ssh/known_hosts` (or other git hosting service) to add the host key to known_hosts.
+
+8. Copy the Dockerfile to your local working directory, and then change PROJECT_NAME to your project name, change PROJECT_SSH_URL to your hosting service URL. You may switch to different branch by adding `--branch <branch-name>` after git clone.
+
+9. Run the following command to build the image:
+```bash
+docker build -t gitlab-registry.nrp-nautilus.io/<user-name>/<project-name>:<custom-tag> .
+docker login gitlab-registry.nrp-nautilus.io
+# Enter your write-registry username and password
+docker push gitlab-registry.nrp-nautilus.io/<user-name>/<project-name>:<custom-tag>
+```
+
+10. If you encountered any error, you may comment out error lines in the Dockerfile and then run
+```bash
+docker run -it /bin/bash gitlab-registry.nrp-nautilus.io/<project-name>:<custom-tag> /bin/bash
+```
+  to enter the image and test the following command manually.
+
+11. After the image is successfully pushed, you can delete all dangling images by running `docker rmi $(docker images -f "dangling=true" -q)`.
