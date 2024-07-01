@@ -625,8 +625,8 @@ def batch(
                                 f"[Warning] Key {key}={config_kwargs[key]} is not allowed in {name}. Ignoring it.")
                             del config_kwargs[key]
 
-                    # Remove comments between ##
-                    model_configs[model]['command'] = re.sub(r'#(.*?)#', '', model_configs[model]['command'])
+                    # Remove comments between ## and ##
+                    model_configs[model]['command'] = re.sub(r'##(.*?)##', '', model_configs[model]['command'])
                     if "local" in mode:
                         if "local_command" in config_kwargs:
                             model_configs[model]['command'] = model_configs[model]['local_command']
