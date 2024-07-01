@@ -116,6 +116,7 @@ run:
 
 > #### Understanding Launch Configuration
 > - `[](make download file=data/;)` is a syntax sugar. Sometimes, we expect slight difference between local and remote commands (like we don't need to re-download data in local runs). Here we use `[]` to indicate the local command (which is doing nothing here), and `()` to indicate the remote command.
+> - Another useful syntax sugar is `#comment#`, as yaml does not support comments in multi-line strings. You can use a pair of `#` to indicate comments, and they will be removed before execution.
 > - In `python src/med.py <fn>`, `<fn>` will be replaced by the values defined in `hparam` section. Hypermeters can be defined in both `model` and `dataset` sections. They are placeholders such that you don't need to copy and paste the same command with slight modifications.
 > - `gpu_count` are model-wise / dataset-wise kubernetes configurations that can be overridden in `launch.yaml`. See Section 2 for all overridable fields. If you don't specify them, they will be inherited from `kube.yaml`. If you specify the same field in both `model` and `dataset`, the one in `model` will take precedence.
 > - `run` section specifies the combinations of experiments to run. You can also add `hparam` to the `run` section to specify the hyperparameters you want to run. If you don't specify the `hparam`, all possible combinations of hyperparameters will be run.
