@@ -78,7 +78,7 @@ def check_key(key, container, expected_type, required=True, header=""):
                 raise TypeError(f"[{header}] Model keys must be strings, but got {type(k).__name__}: {k}")
             check_type(k, container[k], expected_type)
     else:
-        if required and key not in container:
+        if required and (container is None or key not in container):
             raise ValueError(f"[{header}] Missing required key: {key}")
         if key in container:
             value = container[key]
@@ -124,20 +124,21 @@ def validate_launch_settings(launch_settings, create_config_signature):
             for key in required:
                 check_key(key, entry, str, header=f'{name}, required')
             
-            for key in entry:
-                if key in extra:
-                    check_key(key, entry, extra[key], header=f'{name}, extra')
-                elif key not in create_config_signature.parameters:
-                    raise ValueError(f"Unknown key '{key}' in model configuration")
-            
-            for param_name, param in create_config_signature.parameters.items():
-                if param_name in ['name', 'ignored']:
-                    continue
-                # Determine the expected type from type hints
-                expected_type = type_hints.get(param_name, type(param.default))
-                # Check for the correct type if the key exists
-                if param_name in entry:
-                    check_key(param_name, entry, expected_type, required=False, header=f'{name}, optional')
+            if entry is not None:
+                for key in entry:
+                    if key in extra:
+                        check_key(key, entry, extra[key], header=f'{name}, extra')
+                    elif key not in create_config_signature.parameters:
+                        raise ValueError(f"Unknown key '{key}' in model configuration")
+                    
+                for param_name, param in create_config_signature.parameters.items():
+                    if param_name in ['name', 'ignored']:
+                        continue
+                    # Determine the expected type from type hints
+                    expected_type = type_hints.get(param_name, type(param.default))
+                    # Check for the correct type if the key exists
+                    if param_name in entry:
+                        check_key(param_name, entry, expected_type, required=False, header=f'{name}, optional')
 
 
 def check_pod_exists(pod_name, namespace):
@@ -195,7 +196,7 @@ if __name__ == '__main__':
                     if dataset not in launch_settings['dataset']:
                         raise ValueError(f"Dataset '{run_settings['dataset']}' not found in dataset configuration")
         
-        if 'run' in launch_settings:
+        if 'run' in launch_settings and launch_settings['run'] is not None:
             run_configs = launch_settings['run']
         else:
             run_configs = {

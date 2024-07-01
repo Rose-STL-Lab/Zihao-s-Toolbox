@@ -127,13 +127,21 @@ def check_job_status(name):
 
 
 def delete_job(name):
-    subprocess.run(["kubectl", "--namespace=" +
-                   settings["namespace"], "delete", "job", name])
+    subprocess.run(
+        ["kubectl", "--namespace=" + settings["namespace"], "delete", "job", name]
+    )
 
 
 def create_job(name):
-    subprocess.run(["kubectl", "--namespace=" +
-                   settings["namespace"], "create", "-f", f"build/{name}.yaml"])
+    subprocess.run(
+        [
+            "kubectl",
+            "--namespace=" + settings["namespace"],
+            "create",
+            "-f",
+            f"build/{name}.yaml",
+        ]
+    )
 
 
 def create_config(
@@ -142,9 +150,9 @@ def create_config(
     command: str,
     dev_command: str = None,
     gpu_count: int = 0,
-    cpu_count: int = 0,
-    ephermal_storage: int = 0,
-    memory: int = 0,
+    cpu_count: int = 5,
+    ephermal_storage: int = 100,
+    memory: int = 32,
     env: dict = {},
     project_name: str = None,
     interactive: bool = False,
@@ -317,8 +325,8 @@ source src/toolbox/s3region.sh
                 "resources": {
                     "limits": {
                         "nvidia.com/gpu": str(gpu_count),
-                        "memory": f"{memory * 1.2}G",
-                        "cpu": str(cpu_count * 1.2),
+                        "memory": f"{int(memory * 1.5)}G",
+                        "cpu": str(int(cpu_count * 1.5)),
                         **({"ephemeral-storage": f"{ephermal_storage}G"} if ephermal_storage != 0 else {})
                     },
                     "requests": {
@@ -526,9 +534,9 @@ def batch(
     for dataset in run_configs["dataset"]:
         for model in run_configs["model"]:
             hparam = {}
-            if "hparam" in dataset_configs[dataset]:
+            if dataset_configs[dataset] is not None and "hparam" in dataset_configs[dataset]:
                 hparam.update(dataset_configs[dataset]["hparam"])
-            if "hparam" in model_configs[model]:
+            if model_configs[model] is not None and "hparam" in model_configs[model]:
                 hparam.update(model_configs[model]["hparam"])
 
             for config, hparam_dict in zip(*fill_val(model_configs[model], hparam)):
@@ -571,8 +579,10 @@ def batch(
                         del config_kwargs['dataset']
                     if 'run' in config_kwargs:
                         del config_kwargs['run']
-                    config_kwargs.update(kwargs['model'][model])
-                    config_kwargs.update(kwargs['dataset'][dataset])
+                    if kwargs['model'][model] is not None:
+                        config_kwargs.update(kwargs['model'][model])
+                    if kwargs['dataset'][dataset] is not None:
+                        config_kwargs.update(kwargs['dataset'][dataset])
                     config_kwargs.update(config)
                     if 'env' in config_kwargs:
                         config_kwargs['env'].update(kwargs['env'])
