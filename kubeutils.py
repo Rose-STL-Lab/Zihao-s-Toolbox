@@ -344,8 +344,8 @@ fi
                             if special_gpu is None 
                             else {f"nvidia.com/{special_gpu}": str(gpu_count)}
                         ),
-                        "memory": f"{int(memory * 1.5)}G",
-                        "cpu": str(int(cpu_count * 1.5)),
+                        "memory": f"{int(memory * 1.2)}G",
+                        "cpu": str(int(cpu_count * 1.2)),
                         **({"ephemeral-storage": f"{ephermal_storage}G"} if ephermal_storage != 0 else {})
                     },
                     "requests": {
