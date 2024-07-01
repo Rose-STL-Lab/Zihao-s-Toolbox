@@ -110,6 +110,10 @@ tmux:
 		tmux new-session -d -s $(target) "$(MAKE) $(target)", \
 		$(error Target '$(target)' does not exist in the Makefile))
 
+## Extract make target python command and put into vscode launch.json
+debug:
+	@$(PYTHON) src/toolbox/debug_utils.py $(target)
+
 #################################################################################
 # Baseline + other related                                                      #
 #################################################################################
