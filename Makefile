@@ -103,7 +103,7 @@ lint:
 test:
 	echo "Hello World!"
 
-target ?= test
+target ?= launch.yaml
 ## Run background task with tmux
 tmux:
 	$(if $(shell grep -q '^$(target):' $(MAKEFILE_LIST) && echo true), \
@@ -112,7 +112,7 @@ tmux:
 
 ## Extract make target python command and put into vscode launch.json
 debug:
-	@$(PYTHON) src/toolbox/debug_utils.py $(target)
+	@$(PYTHON) src/toolbox/debugutils.py $(target)
 
 #################################################################################
 # Baseline + other related                                                      #

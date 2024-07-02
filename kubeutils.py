@@ -646,7 +646,8 @@ def batch(
                             os.system(command)
                             continue
                         else:
-                            print(command)
+                            assert mode == "local-dryrun", "Invalid mode"
+                            print(f"{name}: {command}")
                             continue
 
                     if "local_command" in config_kwargs:

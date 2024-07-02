@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 
 def extract_and_clean_python_command(s):
     # Step 1: Split into lines and prepare to process
-    lines = s.split('\n')
+    lines = re.split(r'\n|&&|;', s)
     python_line = ""
     capturing = False
 
@@ -38,9 +38,14 @@ def extract_and_clean_python_command(s):
 
 def extract_command(target):
     try:
-        command = ['make', '-n', target]
-        result = subprocess.run(command, capture_output=True, text=True, check=True)
-        rtn = extract_and_clean_python_command(result.stdout)
+        if target == 'local-dryrun':
+            command = ['make', target]
+            result = subprocess.run(command, capture_output=True, text=True, check=True)
+            rtn = result.stdout
+        else:
+            command = ['make', '-n', target]
+            result = subprocess.run(command, capture_output=True, text=True, check=True)
+            rtn = extract_and_clean_python_command(result.stdout)
         return rtn
     except subprocess.CalledProcessError as e:
         print("An error occurred while executing make")
@@ -90,33 +95,57 @@ def create_launch_json(target, program, args):
     return configuration
 
 
-def main(target):
+def add_command_to_launch_json(target, command):
+    program, args = parse_python_command(command)
+    launch_configuration = create_launch_json(target, program, args)
+    config = json.dumps(launch_configuration, indent=4)
+    # Add the config to the `.vscode/launch.json` file, configurations section
+    if os.path.exists('.vscode/launch.json'):
+        # Append to the configurations section
+        with open('.vscode/launch.json', 'r') as f:
+            # Remove // comments first 
+            s = f.read()
+            s = re.sub(r'//.*', '', s)
+            data = json.loads(s)
+            
+            # Make sure there is no existing section with the same name
+            for config in data['configurations']:
+                if config['name'] == target:
+                    print(f"Configuration '{target}' already exists")
+                    break
+            else:
+                data['configurations'].append(launch_configuration)
+                with open('.vscode/launch.json', 'w') as f:
+                    json.dump(data, f, indent=4)
+                    print(f"Configuration '{target}' added to launch.json")
+
+
+def debug_target(target):
     command = extract_command(target)
     if command:
-        program, args = parse_python_command(command)
-        launch_configuration = create_launch_json(target, program, args)
-        config = json.dumps(launch_configuration, indent=4)
-        # Add the config to the `.vscode/launch.json` file, configurations section
-        if os.path.exists('.vscode/launch.json'):
-            # Append to the configurations section
-            with open('.vscode/launch.json', 'r') as f:
-                # Remove // comments first 
-                s = f.read()
-                s = re.sub(r'//.*', '', s)
-                data = json.loads(s)
-                
-                # Make sure there is no existing section with the same name
-                for config in data['configurations']:
-                    if config['name'] == target:
-                        print(f"Configuration '{target}' already exists")
-                        break
-                else:
-                    data['configurations'].append(launch_configuration)
-                    with open('.vscode/launch.json', 'w') as f:
-                        json.dump(data, f, indent=4)
-                        print(f"Configuration '{target}' added to launch.json")
+        add_command_to_launch_json(target, command)
     else:
         print(f"Target '{target}' not found")
+
+
+def debug_launch():
+    commands = extract_command('local-dryrun')
+    lines = [line for line in commands.split('\n') if ':' in line]
+    command_dicts = {
+        key.strip(): value.strip() for key, value in [line.split(':', 1) for line in lines]
+    }
+    command_dicts = {
+        key: extract_and_clean_python_command(value) for key, value in command_dicts.items() if 'python' in value
+    }
+    # Move existing `launch.json`, if any, to `launch.json.bak`
+    if os.path.exists('.vscode/launch.json'):
+        print("Backing up existing launch.json to launch.json.bak ...")
+        os.rename('.vscode/launch.json', '.vscode/launch.json.bak')
+    empty_config = {"version": "0.2.0", "configurations": []}
+    with open('.vscode/launch.json', 'w') as f:
+        json.dump(empty_config, f, indent=4)
+    for target, command in command_dicts.items():
+        add_command_to_launch_json(target, command)
 
 
 if __name__ == "__main__":
@@ -124,4 +153,7 @@ if __name__ == "__main__":
     argparser.add_argument('target', help='The target to extract the command from')
     args = argparser.parse_args()
     
-    main(args.target)
+    if args.target == 'launch.yaml':
+        debug_launch()
+    else:
+        debug_target(args.target)
