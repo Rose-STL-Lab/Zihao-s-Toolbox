@@ -289,8 +289,6 @@ fi
             )
     if '.env' not in file:
         file.append('.env')
-    if not any(f.startswith('config') for f in file):
-        file.append('config')
     if 'config/kube.yaml' not in file:
         file.append('config/kube.yaml')
 
