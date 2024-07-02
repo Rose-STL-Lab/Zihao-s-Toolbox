@@ -144,6 +144,23 @@ def create_job(name):
     )
 
 
+def deploy_job(name):
+    status = check_job_status(name)
+
+    if status == "succeeded" or status == "running":
+        print(
+            f"Job '{name}' is already {status}. Doing nothing.")
+    elif status == "failed":
+        print(
+            f"Job '{name}' has failed. Deleting the job.")
+        delete_job(name)
+        print(f"Creating job '{name}'.")
+        create_job(name)
+    elif status == "not_found":
+        print(f"Job '{name}' not found. Creating the job.")
+        create_job(name)
+
+
 def create_config(
     # Pod config
     name: str,
@@ -164,6 +181,7 @@ def create_config(
     ssh_port: int = None,
     tolerations: List[str] = None,
     volumes: dict[str, str] = None,
+    shared: float = 1.0,
 
     # User config
     namespace: str = None,
@@ -194,11 +212,10 @@ def create_config(
             print(f"[Warning] Key {key}={value} is unknown. Ignoring it.")
 
     # Initialization
-    if prefix is None:
-        name = f"{settings['user']}-{name}"
-    else:
-        if not prefix == "":
-            name = f"{prefix}-{name}"
+    if prefix is None and "prefix" in settings:
+        prefix = settings["prefix"]
+    if not prefix == "":
+        name = f"{prefix}-{name}"
     if namespace is None:
         namespace = settings["namespace"]
     if user is None:
@@ -335,7 +352,7 @@ fi
                     "/bin/bash",
                     "-c",
                     ((load_startup_script + server_command)
-                     if interactive else (load_startup_script + command))
+                     if interactive else (load_startup_script + command)).replace("\n", " ").strip()
                 ],
                 "resources": {
                     "limits": {
@@ -559,6 +576,8 @@ def batch(
         for key, val in run_configs["hparam"].items():
             if type(val) is str:
                 run_configs["hparam"][key] = [val]
+                
+    shared_pool = {}  # Pool for shared GPU configs
 
     for dataset in run_configs["dataset"]:
         for model in run_configs["model"]:
@@ -630,24 +649,24 @@ def batch(
                     if "local" in mode:
                         if "local_command" in config_kwargs:
                             model_configs[model]['command'] = model_configs[model]['local_command']
-                        command = fill_val({'_': model_configs[model]['command']}, hparam_dict)[
+                        cmd = fill_val({'_': model_configs[model]['command']}, hparam_dict)[
                             0][0]['_']
-                        command = re.sub(
-                            r'\[(.*?)\]\(.*?\)', r'\1', command).strip()
+                        cmd = re.sub(
+                            r'\[(.*?)\]\(.*?\)', r'\1', cmd).strip()
                         system_type = platform.system()
                         if system_type == 'Linux':
-                            command = 'export $(grep -v \'^#\' .env | xargs -d \'\\n\') && ' + command
+                            cmd = 'export $(grep -v \'^#\' .env | xargs -d \'\\n\') && ' + cmd
                         elif system_type in ['Darwin', 'FreeBSD']:
-                            command = 'export $(grep -v \'^#\' .env | xargs -0) && ' + command
+                            cmd = 'export $(grep -v \'^#\' .env | xargs -0) && ' + cmd
                         else:
                             raise Exception("Unsupported OS")
                         if mode == "local":
-                            print(f"Running {json.dumps(hparam_dict, indent=4)} ... \n```\n{command}\n```")
-                            os.system(command)
+                            print(f"Running {json.dumps(hparam_dict, indent=2)} ... \n```\n{cmd}\n```")
+                            os.system(cmd)
                             continue
                         else:
                             assert mode == "local-dryrun", "Invalid mode"
-                            print(f"{name}: {command}")
+                            print(f"{name}: {cmd}")
                             continue
 
                     if "local_command" in config_kwargs:
@@ -677,6 +696,11 @@ def batch(
                         print(
                             f"Memory overriden by hparam: {hparam_dict['memory']}")
                         config_kwargs["memory"] = int(hparam_dict["memory"])
+                        
+                    if "shared" in config:
+                        shared = config['shared']
+                    else:
+                        shared = 1.0
 
                     config = create_config(
                         name=name,
@@ -693,42 +717,123 @@ def batch(
                         )
                         print(
                             f"Command overriden by hparam: {config_kwargs['dev_command']}")
-                    command = config["spec"]["template"]["spec"]["containers"][0]["command"][-1].strip()
+                    cmd = config["spec"]["template"]["spec"]["containers"][0]["command"][-1].strip()
 
-                    if "source startup.sh;" in command:
-                        original_command = original_command[original_command.index(
-                            "source startup.sh;"):]
-                        command = command[command.index("source startup.sh;"):]
+                    if "source startup.sh;" in cmd:
+                        original_command = original_command[original_command.index("source startup.sh;"):]
+                        cmd = cmd[cmd.index("source startup.sh;"):]
 
                     if "run_mode" in hparam_dict and "dev" in hparam_dict["run_mode"] and "dev_command" in config_kwargs:
-                        print(f"Generated kube config {json.dumps(hparam_dict, indent=4)} ... \n"
-                              f"\nDEV command: \n```\n{command}\n```"
+                        print(f"Generated kube config {json.dumps(hparam_dict, indent=2)} ... \n"
+                              f"\nDEV command: \n```\n{cmd}\n```"
                               f"\nORIGINAL command: \n```\n{original_command}\n```\nand saved to build/{name}.yaml")
                     else:
-                        print(
-                            f"Generated kube config {json.dumps(hparam_dict, indent=4)} ... \n```\n{command}\n```")
+                        print(f"Generated kube config {json.dumps(hparam_dict, indent=2)} ... \n```\n{cmd}\n```")
 
                     name = config["metadata"]["name"]
                     yaml.Dumper.ignore_aliases = lambda *_: True
                     if not os.path.exists("build"):
                         os.makedirs("build")
                     with open(f"build/{name}.yaml", "w") as f:
-                        yaml.dump(config, f)
+                        yaml.dump(config, f, indent=2, width=float("inf"))
+                    
+                    # For two jobs to share the same node, they must have same
+                    # GPU count, CPU count, ephermeral storage, memory, volume, affinity, prefix, and tolerations
+                    shared_metrics = [
+                        "gpu_count",
+                        "cpu_count",
+                        "ephermal_storage",
+                        "memory",
+                        "volumes",
+                        "special_gpu",
+                        "gpu_whitelist",
+                        "gpu_blacklist",
+                        "hostname_whitelist",
+                        "hostname_blacklist",
+                        "tolerations",
+                        "prefix"
+                    ]
+                    
+                    key = json.dumps({
+                        k: v for k, v in config_kwargs.items() if k in shared_metrics
+                    }, sort_keys=True)
+                    
+                    if 'prefix' not in config_kwargs:
+                        prefix = settings['user']
+                    else:
+                        prefix = config_kwargs['prefix']
+                    
+                    if shared < 1.0:
+                        if key not in shared_pool:
+                            shared_pool[key] = []
+                        shared_pool[key].append({
+                            'name': name, 
+                            'config': config, 
+                            'shared': shared, 
+                            'prefix': prefix
+                        })
+                    else:
+                        if mode == "job":
+                            deploy_job(name)
+    
+    # Build and create shared jobs
+    if shared_pool:
+        for key, configs in shared_pool.items():
+            to_merge = []
+            total = 0
+            while configs:
+                config = configs.pop()
+                name = config['name']
+                shared = config['shared']
+                prefix = config['prefix']
+                config = config['config']
+                to_merge.append((name, config))
+                total += shared
+                
+                if not configs or total + configs[-1]['shared'] > 1.0:
+                    # Merged config
+                    prefix = (prefix + '-') if prefix != '' else ''
+                    merge_name = f"{prefix}{project_name}-shared"
+                    log = "Jobs "
+                    
+                    # Tmux is required to run multiple commands in a single container
+                    merge_cmd = "sudo apt-get update && sudo apt install tmux -y && "
+                    
+                    for i, (name, config) in enumerate(to_merge):
+                        merge_name += "-" + name[-5:]
+                        log += f"{name}, "
+                        cmd = config["spec"]["template"]["spec"]["containers"][0]["command"][-1]
+                        if "source startup.sh;" in cmd:
+                            idx = cmd.index("source startup.sh;")
+                            startup_cmd = cmd[:idx]
+                            cmd = cmd[idx:]
+                        
+                        # Escape double quotes in the command
+                        cmd = cmd.replace('"', '\\\"')
+                        tmux_cmd = f"tmux new-session -d -s {name} \"{cmd} | tee {name}.txt\" >> tmux.txt"
+                        if i == 0:
+                            merge_cmd += startup_cmd + tmux_cmd
+                        else:
+                            merge_cmd += f" && {tmux_cmd}"
+                    
+                    # Poll for all tmux sessions to finish
+                    merge_cmd += """ && while true; do TMUX_SESSIONS=$(tmux list-sessions 2>&1); [[ "$TMUX_SESSIONS" == *"no server running"* ]] && echo "No tmux server running, all sessions are closed." && break; echo "Waiting for all TMUX sessions to finish..."; sleep 10; done"""  # noqa
+                    # Print the logs of all tmux sessions
+                    merge_cmd += " && cat tmux.txt"
+                    for name, _ in to_merge:
+                        merge_cmd += " && cat " + name + ".txt"
+                        
+                    config["metadata"]["name"] = merge_name
+                    config["spec"]["template"]["spec"]["containers"][0]["command"][-1] = merge_cmd
+                    to_merge = []
+                    total = 0
+                    
+                    with open(f"build/{merge_name}.yaml", "w") as f:
+                        yaml.dump(config, f, indent=2, width=float("inf"))
+                        log = log[:-2] + f" are merged into {merge_name} and saved to build/{merge_name}.yaml."
+                        print(log)
                     if mode == "job":
-                        status = check_job_status(name)
-
-                        if status == "succeeded" or status == "running":
-                            print(
-                                f"Job '{name}' is already {status}. Doing nothing.")
-                        elif status == "failed":
-                            print(
-                                f"Job '{name}' has failed. Deleting the job.")
-                            delete_job(name)
-                            print(f"Creating job '{name}'.")
-                            create_job(name)
-                        elif status == "not_found":
-                            print(f"Job '{name}' not found. Creating the job.")
-                            create_job(name)
+                        deploy_job(merge_name)
 
 
 if __name__ == "__main__":

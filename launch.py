@@ -270,7 +270,7 @@ if __name__ == '__main__':
                 pod_name = modify_pod_name(pod_name)
             config['metadata']['name'] = pod_name
             with open(f"build/{name}.yaml", "w") as f:
-                yaml.dump(config, f)
+                yaml.dump(config, f, indent=2, width=float("inf"))
             if mode == "pod":
                 os.system(f"kubectl apply -f build/{name}.yaml")
             else:
