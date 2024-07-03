@@ -447,6 +447,13 @@ fi
             }
             for volume in volumes]
     }
+    
+    # If affinity is empty
+    if (
+        len(template["affinity"]["nodeAffinity"]["requiredDuringSchedulingIgnoredDuringExecution"]["nodeSelectorTerms"]) == 1 
+        and len(template["affinity"]["nodeAffinity"]["requiredDuringSchedulingIgnoredDuringExecution"]["nodeSelectorTerms"][0]["matchExpressions"]) == 0
+    ):
+        del template["affinity"]
 
     if interactive:
         container = template["containers"][0]
@@ -808,7 +815,7 @@ def batch(
                         
                         # Escape double quotes in the command
                         cmd = cmd.replace('"', '\\\"')
-                        tmux_cmd = f"tmux new-session -d -s {name} \"{cmd} | tee {name}.txt\" >> tmux.txt"
+                        tmux_cmd = f"sleep 5 && tmux new-session -d -s {name} \"{cmd} 2>&1 | tee {name}.txt\" >> tmux.txt"
                         if i == 0:
                             merge_cmd += startup_cmd + tmux_cmd
                         else:
