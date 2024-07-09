@@ -449,11 +449,19 @@ fi
             }
             for volume in volumes]
     }
-    
+
     # If affinity is empty
     if (
-        len(template["affinity"]["nodeAffinity"]["requiredDuringSchedulingIgnoredDuringExecution"]["nodeSelectorTerms"]) == 1 
-        and len(template["affinity"]["nodeAffinity"]["requiredDuringSchedulingIgnoredDuringExecution"]["nodeSelectorTerms"][0]["matchExpressions"]) == 0
+        len(
+            template["affinity"]["nodeAffinity"][
+                "requiredDuringSchedulingIgnoredDuringExecution"
+            ]["nodeSelectorTerms"]
+        ) == 1
+        and len(
+            template["affinity"]["nodeAffinity"][
+                "requiredDuringSchedulingIgnoredDuringExecution"
+            ]["nodeSelectorTerms"][0]["matchExpressions"]
+        ) == 0
     ):
         del template["affinity"]
 
