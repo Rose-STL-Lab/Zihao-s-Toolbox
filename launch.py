@@ -173,7 +173,13 @@ if __name__ == '__main__':
     arg = argparse.ArgumentParser()
     arg.add_argument("--mode", type=str, default="job")
     arg.add_argument("--pod_name", type=str, default=None)
+    arg.add_argument("--overwrite", type=str, default="False")
     args = arg.parse_args()
+    
+    if args.overwrite.lower() == "true":
+        args.overwrite = True
+    else:
+        args.overwrite = False
 
     with open("config/launch.yaml", "r") as f:
         launch_settings = yaml.safe_load(f)
@@ -284,6 +290,7 @@ if __name__ == '__main__':
                 model_configs=launch_settings['model'],
                 env=load_env_file(),
                 mode=mode,
+                overwrite=args.overwrite,
                 **launch_settings
             )
         else:
@@ -294,5 +301,6 @@ if __name__ == '__main__':
                     model_configs=launch_settings['model'],
                     env=load_env_file(),
                     mode=mode,
+                    overwrite=args.overwrite,
                     **launch_settings
                 )

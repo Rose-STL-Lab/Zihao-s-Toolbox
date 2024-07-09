@@ -147,7 +147,7 @@ local: kube
 	$(PYTHON) launch.py --mode local
 
 job: kube
-	$(PYTHON) launch.py --mode job
+	$(PYTHON) launch.py --mode job --overwrite $(overwrite)
 
 pod: kube
 ifdef pod

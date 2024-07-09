@@ -144,10 +144,10 @@ def create_job(name):
     )
 
 
-def deploy_job(name):
+def deploy_job(name, overwrite=False):
     status = check_job_status(name)
 
-    if status == "succeeded" or status == "running":
+    if (status == "succeeded" or status == "running") and not overwrite:
         print(
             f"Job '{name}' is already {status}. Doing nothing.")
     elif status == "failed":
@@ -158,6 +158,11 @@ def deploy_job(name):
         create_job(name)
     elif status == "not_found":
         print(f"Job '{name}' not found. Creating the job.")
+        create_job(name)
+    elif overwrite:
+        print(f"Job is already {status}, overwriting...")
+        delete_job(name)
+        print(f"Creating job '{name}'.")
         create_job(name)
 
 
@@ -572,6 +577,7 @@ def batch(
     model_configs: dict,
     project_name: str = None,
     mode: str = "job",
+    overwrite: bool = False,
     **kwargs
 ):
     """
@@ -789,7 +795,7 @@ def batch(
                         })
                     else:
                         if mode == "job":
-                            deploy_job(name)
+                            deploy_job(name, overwrite)
     
     # Build and create shared jobs
     if shared_pool:
@@ -848,7 +854,7 @@ def batch(
                         log = log[:-2] + f" are merged into {merge_name} and saved to build/{merge_name}.yaml."
                         print(log)
                     if mode == "job":
-                        deploy_job(merge_name)
+                        deploy_job(merge_name, overwrite)
 
 
 if __name__ == "__main__":
