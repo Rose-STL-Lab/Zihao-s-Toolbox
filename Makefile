@@ -4,7 +4,6 @@ $(error "__init__.py is present in the current directory. Please install this as
 endif
 
 .PHONY: all $(MAKECMDGOALS)
-LOCKFILE = /tmp/make.lock
 
 #################################################################################
 # GLOBALS                                                                       #
@@ -115,14 +114,6 @@ tmux:
 debug:
 	@$(PYTHON) src/toolbox/debugutils.py $(target)
 
-## Ensure that only one target is running at a time
-lock:
-	@while [ -f $(LOCKFILE) ]; do \
-		echo "Waiting for other target to finish..."; \
-		sleep 1; \
-	done
-	@touch $(LOCKFILE)
-
 #################################################################################
 # Baseline + other related                                                      #
 #################################################################################
@@ -217,44 +208,38 @@ prompt_for_file:
 	$(call request_file_input)
 
 ## Interactive mode with s3 file or folder
-interactive: prompt_for_file lock
+interactive: prompt_for_file
 	@$(PYTHON) src/toolbox/s3utils.py --interactive $(file)
-	@rm -f $(LOCKFILE)
 
 ## Find s3 custom file or folder
-find: prompt_for_file lock
+find: prompt_for_file
 	@$(PYTHON) src/toolbox/s3utils.py --find $(file)
-	@rm -f $(LOCKFILE)
 fd: find
 
 ## List s3 custom file or folder
-list: prompt_for_file lock
+list: prompt_for_file
 	@$(PYTHON) src/toolbox/s3utils.py --list $(file)
-	@rm -f $(LOCKFILE)
 ls: list
 
 ## Download custom file or folder
-download: prompt_for_file lock
+download: prompt_for_file
 ifeq ($(overwrite),true)
 	rm -rf $(file)
 endif
 	@$(PYTHON) src/toolbox/s3utils.py --download $(file)
-	@rm -f $(LOCKFILE)
 down: download
 
 ## Upload custom file or folder
-upload: prompt_for_file lock
+upload: prompt_for_file
 ifeq ($(overwrite),true)
 	@$(PYTHON) src/toolbox/s3utils.py --remove $(file)
 endif
 	@$(PYTHON) src/toolbox/s3utils.py --upload $(file)
-	@rm -f $(LOCKFILE)
 up: upload
 
 ## Remove s3 custom file or folder
-remove: prompt_for_file lock
+remove: prompt_for_file
 	@$(PYTHON) src/toolbox/s3utils.py --remove $(file)
-	@rm -f $(LOCKFILE)
 rm: remove
 
 #################################################################################
