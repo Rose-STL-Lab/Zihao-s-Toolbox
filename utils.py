@@ -63,9 +63,30 @@ def plotly_to_svg_html(figs):
     
     # Combine and display SVG in HTML format
     html_output = f"<div style='display: flex; justify-content: center; align-items: center;'>"
-    html_output += "".join([f"<div style='margin: 10px;'>{plotly_to_svg(fig)}</div>" for fig in figs])
+    html_output += "".join([f"<div style='margin: 0px;'>{plotly_to_svg(fig)}</div>" for fig in figs])
     html_output += "</div>"
     
+    return html_output
+
+
+def plt_to_svg_html(plt_figures):
+    import io
+    
+    if not isinstance(plt_figures, list):
+        plt_figures = [plt_figures]
+    
+    html_output = "<div style='display: flex; justify-content: center; align-items: center;'>"
+    for fig in plt_figures:
+        # Convert figure to SVG
+        img_data = io.BytesIO()
+        fig.savefig(img_data, format='svg', bbox_inches='tight')
+        img_data.seek(0)
+        svg_data = img_data.getvalue().decode('utf-8')
+        
+        # Embed SVG in HTML
+        html_output += f"<div style='margin: 0px;'>{svg_data}</div>"
+    
+    html_output += "</div>"
     return html_output
 
 
