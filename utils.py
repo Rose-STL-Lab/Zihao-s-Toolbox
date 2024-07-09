@@ -51,14 +51,30 @@ def increase_u_limit():
     resource.setrlimit(resource.RLIMIT_NOFILE, (65536, rlimit[1]))
 
 
-def plotly_to_png(fig):
+def plotly_to_svg(fig):
     import plotly.io as pio
+    svg = pio.to_image(fig, format='svg')
+    return svg
+
+
+def plotly_to_svg_html(figs):
+    if not isinstance(figs, list):
+        figs = [figs]
+    
+    # Combine and display SVG in HTML format
+    html_output = f"<div style='display: flex; justify-content: center; align-items: center;'>"
+    html_output += "".join([f"<div style='margin: 10px;'>{plotly_to_svg(fig)}</div>" for fig in figs])
+    html_output += "</div>"
+    
+    return html_output
+
+
+def plotly_to_png(fig):
     import cairosvg
     from PIL import Image
     import tempfile
 
-    # Assuming 'fig' is defined elsewhere in your code
-    svg = pio.to_image(fig, format='svg')
+    svg = plotly_to_svg(fig)
 
     # Use tempfile for managing temporary files/directories
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -114,16 +130,20 @@ def loadable_artifacts(
     api = wandb.Api()
     artifacts = api.artifacts(type_name=artifact_type, name=artifact_name)
     loadable = {}
-    for art in reversed(artifacts):
-        run = art.logged_by()
-        conf = run.config
-        if compare_nested_dicts(conf, hparams):
-            loadable[run.id] = {
-                'artifact': art,
-                'conf': run.config,
-                'tags': run.tags
-            }
-            logger.info(f"Found matching config in run {run.id}, with tags{run.tags}")
+    
+    try:
+        for art in reversed(artifacts):
+            run = art.logged_by()
+            conf = run.config
+            if compare_nested_dicts(conf, hparams):
+                loadable[run.id] = {
+                    'artifact': art,
+                    'conf': run.config,
+                    'tags': run.tags
+                }
+                logger.info(f"Found matching config in run {run.id}, with tags{run.tags}")
+    except TypeError:
+        logger.error(f"No artifacts found with type {artifact_type} and name {artifact_name}")
     return loadable
 
 
@@ -146,3 +166,44 @@ def load_wandb_artifact(
         tmpfile_path = os.path.join(tmp, tmpfile_name)
         model = model_cls.load_from_checkpoint(checkpoint_path=tmpfile_path)
     return model
+
+
+# Function to configure camera settings
+def configure_camera(angle):
+    camera = dict(
+        eye=dict(x=1.7 * angle[0], y=1.7 * angle[1], z=1.7 * angle[2])
+    )
+    return camera
+
+
+# Configure plot layout
+def get_figure_with_camera(fig, camera_angle):
+    fig.update_layout(
+        scene_camera=camera_angle,
+        width=400,  # reduce the width for side-by-side display
+        scene=dict(
+            xaxis_title=None,
+            yaxis_title=None,
+            zaxis_title=None
+        ),
+        title=None,
+        margin_pad=0,
+        margin=dict(l=0, r=0, b=0, t=0)
+    )
+    return fig
+
+
+# Main function to display the figures
+def show_3d_figures(fig_3d):
+    from copy import deepcopy
+    
+    camera_angles = [(1, 1, 1), (1, -1, 1), (-1, -1, 1)]
+    
+    figs = []
+    for angle in camera_angles:
+        fig = deepcopy(fig_3d)
+        camera = configure_camera(angle)
+        adjusted_fig = get_figure_with_camera(fig, camera)
+        figs.append(adjusted_fig)
+    
+    return plotly_to_svg_html(figs)

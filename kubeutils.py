@@ -215,6 +215,8 @@ def create_config(
     if prefix is None and "prefix" in settings:
         prefix = settings["prefix"]
     if not prefix == "":
+        if prefix is None:
+            prefix = settings['user']
         name = f"{prefix}-{name}"
     if namespace is None:
         namespace = settings["namespace"]
