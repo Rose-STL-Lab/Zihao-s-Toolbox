@@ -54,7 +54,7 @@ def increase_u_limit():
 def plotly_to_svg(fig):
     import plotly.io as pio
     svg = pio.to_image(fig, format='svg')
-    return svg
+    return svg.decode('utf-8')
 
 
 def plotly_to_svg_html(figs):
