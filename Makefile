@@ -112,7 +112,7 @@ tmux:
 
 ## Extract make target python command and put into vscode launch.json
 debug:
-	@$(PYTHON) src/toolbox/debugutils.py $(target)
+	@$(PYTHON) src/toolbox/debugutils.py $(target) $(overwrite)
 
 #################################################################################
 # Baseline + other related                                                      #

@@ -95,35 +95,51 @@ def create_launch_json(target, program, args):
     return configuration
 
 
-def add_command_to_launch_json(target, command):
+def add_command_to_launch_json(target, command, overwrite=False):
     program, args = parse_python_command(command)
     launch_configuration = create_launch_json(target, program, args)
     config = json.dumps(launch_configuration, indent=4)
-    # Add the config to the `.vscode/launch.json` file, configurations section
+
     if os.path.exists('.vscode/launch.json'):
-        # Append to the configurations section
         with open('.vscode/launch.json', 'r') as f:
-            # Remove // comments first 
             s = f.read()
             s = re.sub(r'//.*', '', s)
             data = json.loads(s)
             
-            # Make sure there is no existing section with the same name
-            for config in data['configurations']:
+            # Check if a configuration with the same name already exists
+            for i, config in enumerate(data['configurations']):
                 if config['name'] == target:
-                    print(f"Configuration '{target}' already exists")
+                    if overwrite:
+                        # Overwrite the existing configuration
+                        data['configurations'][i] = launch_configuration
+                        with open('.vscode/launch.json', 'w') as f:
+                            json.dump(data, f, indent=4)
+                            print(f"Configuration '{target}' overwritten in launch.json")
+                    else:
+                        print(f"Configuration '{target}' already exists")
                     break
             else:
+                # If no existing configuration found, append the new configuration
                 data['configurations'].append(launch_configuration)
                 with open('.vscode/launch.json', 'w') as f:
                     json.dump(data, f, indent=4)
                     print(f"Configuration '{target}' added to launch.json")
+    else:
+        # If `.vscode/launch.json` doesn't exist, create a new file with the configuration
+        data = {
+            "version": "0.2.0",
+            "configurations": [launch_configuration]
+        }
+        os.makedirs('.vscode', exist_ok=True)
+        with open('.vscode/launch.json', 'w') as f:
+            json.dump(data, f, indent=4)
+            print(f"Configuration '{target}' added to launch.json")
 
 
-def debug_target(target):
+def debug_target(target, overwrite=False):
     command = extract_command(target)
     if command:
-        add_command_to_launch_json(target, command)
+        add_command_to_launch_json(target, command, overwrite)
     else:
         print(f"Target '{target}' not found")
 
@@ -151,9 +167,12 @@ def debug_launch():
 if __name__ == "__main__":
     argparser = ArgumentParser()
     argparser.add_argument('target', help='The target to extract the command from')
+    argparser.add_argument('overwrite', help='Overwrite existing target')
+        
     args = argparser.parse_args()
+    args.overwrite = args.overwrite.lower() == 'true'
     
     if args.target == 'launch.yaml':
         debug_launch()
     else:
-        debug_target(args.target)
+        debug_target(args.target, args.overwrite)
