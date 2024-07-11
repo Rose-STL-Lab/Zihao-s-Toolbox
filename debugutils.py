@@ -73,6 +73,23 @@ def parse_python_command(command):
     if accumulator:
         parts.append(''.join(accumulator))
 
+    # Remove all parts before last python / python3
+    last_python_index = None
+    for i, part in enumerate(parts):
+        if part in ["python", "python3"] and parts[i + 1].endswith(".py"):
+            last_python_index = i
+
+    if last_python_index is not None:
+        parts = parts[last_python_index + 1:]
+        
+    # Remove all parts after last new line
+    for i, part in enumerate(parts):
+        if '\n' in part:
+            last = part.split('\n')[0]
+            parts = parts[:i]
+            parts.append(last)
+            break
+
     program = parts[0]
     args = parts[1:]
     
