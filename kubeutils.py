@@ -341,8 +341,7 @@ fi
         "namespace": namespace,
         "labels": {"user": user, "project": project_name}
     }
-
-    command = re.sub(r'\[(.*?)\]\((.*?)\)', r'\2', command)
+    command = re.sub(r'\[([^\]]*)\]\(([^\)]*)\)', r'\2', command)
 
     template = {
         "containers": [
@@ -672,8 +671,8 @@ def batch(
                             model_configs[model]['command'] = model_configs[model]['local_command']
                         cmd = fill_val({'_': model_configs[model]['command']}, hparam_dict)[
                             0][0]['_']
-                        cmd = re.sub(
-                            r'\[(.*?)\]\(.*?\)', r'\1', cmd).strip()
+                        cmd = re.sub(r'\[([^\]]*)\]\(([^\)]*)\)', r'\1', cmd).strip()
+                        
                         system_type = platform.system()
                         if system_type == 'Linux':
                             cmd = 'export $(grep -v \'^#\' .env | xargs -d \'\\n\') && ' + cmd
@@ -749,7 +748,7 @@ def batch(
                               f"\nDEV command: \n```\n{cmd}\n```"
                               f"\nORIGINAL command: \n```\n{original_command}\n```\nand saved to build/{name}.yaml")
                     else:
-                        print(f"Generated kube config {json.dumps(hparam_dict, indent=2)} ... \n```\n{cmd}\n```")
+                        print(f"Generated kube config {json.dumps(hparam_dict, indent=2)} ... \n```\n{cmd}\n```\nand saved to build/{name}.yaml")
 
                     name = config["metadata"]["name"]
                     yaml.Dumper.ignore_aliases = lambda *_: True
