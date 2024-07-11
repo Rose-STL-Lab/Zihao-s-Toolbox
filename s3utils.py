@@ -135,6 +135,7 @@ def download_s3_path(s3_path, local_path='./'):
     """
     Download all files in the S3 path to the local file system.
     """
+    s3_path = os.path.normpath(s3_path)
     if shutil.which('s5cmd'):
         s3_path = s3_path.rstrip('/')
         prefix = f"s3://{S3_BUCKET_NAME}/{s3_path}"
@@ -213,6 +214,7 @@ def remove_s3_path(s3_path):
     """
     Remove all files in the S3 path.
     """
+    s3_path = os.path.normpath(s3_path)
     s3_objects = get_s3_objects(s3_path)
     remove_s3_objects(s3_objects)
 
@@ -237,6 +239,7 @@ def upload_s3_path(s3_path, local_path='./'):
     """
     Upload all files in the local path to the S3 path.
     """
+    s3_path = os.path.normpath(s3_path)
     if shutil.which('s5cmd'):
         s3_path = s3_path.rstrip('/')
         local_path = os.path.join(local_path, s3_path)
