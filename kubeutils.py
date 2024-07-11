@@ -341,6 +341,7 @@ fi
         "namespace": namespace,
         "labels": {"user": user, "project": project_name}
     }
+    command = re.sub(r'##(.*?)##', '', command)
     command = re.sub(r'\[([^\]]*)\]\(([^\)]*)\)', r'\2', command)
 
     template = {
