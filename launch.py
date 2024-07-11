@@ -22,6 +22,18 @@ def modify_pod_name(pod_name):
     return f"{pod_name}-1"  # Default case if no numeric suffix exists
 
 
+def convert_to_string(data):
+    if isinstance(data, dict):
+        exception_keys = ['gpu_count', 'cpu_count', 'ephermal_storage', 'memory', 'ssh_port', 'shared']
+        return {k: (v if k in exception_keys else convert_to_string(v)) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [convert_to_string(item) for item in data]
+    elif isinstance(data, (int, float)):
+        return str(data)
+    else:
+        return data
+
+
 def check_type(key, value, expected_type):
     """Check if the value is of the expected type."""
     # If the expected type is Any, all values are acceptable.
@@ -38,7 +50,7 @@ def check_type(key, value, expected_type):
             except TypeError:
                 continue
         # If none of the types matched, raise a TypeError.
-        valid_types = [t.__name__ for t in get_args(expected_type)]
+        valid_types = [t for t in get_args(expected_type)]
         raise TypeError(f"Key '{key}' is expected to be one of the types {valid_types}, "
                         f"but got {type(value).__name__}: {value}")
 
@@ -187,6 +199,9 @@ if __name__ == '__main__':
         type_hints = get_type_hints(create_config)
         if "dataset" not in launch_settings:
             launch_settings["dataset"] = {"": {}}
+        
+        # Convert all int and float in launch_settings to str, recursively
+        launch_settings = convert_to_string(launch_settings)
         
         # Perform typechecks
         validate_launch_settings(launch_settings, create_config_signature)
