@@ -323,6 +323,8 @@ fi
         env["PYTHONPATH"] += ":src"
     if "WANDB_MODE" in env:
         env["WANDB_MODE"] = "online"  # Always use online mode in the cluster
+    if "CUDA_VISIBLE_DEVICES" in env:
+        del env["CUDA_VISIBLE_DEVICES"]  # Always use all GPUs in the cluster
     # Map the S3 endpoint to the internal endpoint
     nautilus_s3_map = {
         'https://s3-west.nrp-nautilus.io': 'http://rook-ceph-rgw-nautiluss3.rook',
