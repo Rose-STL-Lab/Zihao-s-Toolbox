@@ -163,6 +163,7 @@ else
 	$(PYTHON) launch.py --mode copy_files
 endif
 
+## Delete all jobs
 delete_job:
 	@echo "You are going to delete the following jobs:"
 	@kubectl -n $(NAMESPACE) get jobs -l user=$(USERNAME) -l project=$(PROJECT_NAME)
@@ -170,6 +171,17 @@ delete_job:
 	@echo "Deleting jobs..."
 	@kubectl -n $(NAMESPACE) delete jobs -l user=$(USERNAME) -l project=$(PROJECT_NAME)
 
+## Delete failed jobs
+clean_jobs:
+	@echo "You are going to delete the following failed jobs:"
+	@kubectl -n $(NAMESPACE) get jobs -l user=$(USERNAME) -l project=$(PROJECT_NAME) -o json | jq -r '.items[] | select(.status.failed != null) | .metadata.name' | tee /tmp/failed-jobs.txt
+	@[ -s /tmp/failed-jobs.txt ] || { echo "No failed jobs to delete"; exit 1; }
+	@read -p "Are you sure you want to continue? [y/N]: " confirm && [ "$$confirm" = "y" ] || exit 1
+	@echo "Deleting failed jobs..."
+	@cat /tmp/failed-jobs.txt | xargs -I {} kubectl -n $(NAMESPACE) delete job {}
+	@rm /tmp/failed-jobs.txt
+
+## Delete all pods
 delete_pod:
 	@echo "You are going to delete the following pods:"
 	@kubectl -n $(NAMESPACE) get pods -l user=$(USERNAME) -l project=$(PROJECT_NAME)
@@ -177,6 +189,7 @@ delete_pod:
 	@echo "Deleting pods..."
 	@kubectl -n $(NAMESPACE) delete pods -l user=$(USERNAME) -l project=$(PROJECT_NAME)
 
+## Delete everything
 delete: kube delete_pod delete_job
 
 #################################################################################
