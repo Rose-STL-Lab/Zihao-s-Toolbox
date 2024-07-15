@@ -7,12 +7,14 @@ from botocore import UNSIGNED
 from botocore.client import Config
 import shutil
 import sys
+from utils import CustomLogger
 
 
 S3_ENDPOINT_URL = os.getenv('S3_ENDPOINT_URL')
 S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
 if not S3_ENDPOINT_URL or not S3_BUCKET_NAME:
     raise EnvironmentError("Please set the S3_ENDPOINT_URL and S3_BUCKET_NAME environment variables.")
+logger = CustomLogger()
 
 # Check if credentials are provided
 if os.getenv('AWS_ACCESS_KEY_ID') and os.getenv('AWS_SECRET_ACCESS_KEY'):
@@ -123,12 +125,12 @@ def download_s3_objects(s3_objects, local_path='./'):
         # Download the file from S3
         try:
             if os.path.exists(local_file_path):
-                print(f"File {local_file_path} already exists")
+                logger.warning(f"File {local_file_path} already exists")
                 continue
             s3_client.download_file(S3_BUCKET_NAME, s3_key, local_file_path)
-            print(f"Downloaded {s3_key} to {local_file_path}")
+            logger.info(f"Downloaded {s3_key} to {local_file_path}")
         except ClientError as e:
-            print(f"Failed to download {s3_key}: {e}")
+            logger.error(f"Failed to download {s3_key}: {e}")
 
 
 def download_s3_path(s3_path, local_path='./'):
@@ -139,9 +141,10 @@ def download_s3_path(s3_path, local_path='./'):
     if shutil.which('s5cmd'):
         s3_path = s3_path.rstrip('/')
         prefix = f"s3://{S3_BUCKET_NAME}/{s3_path}"
-        output = os.popen(f"s5cmd ls {prefix}").read()
-        # Is directory?
-        if "\n" not in output.strip() and os.path.basename(s3_path) in output:
+        response = s3_client.list_objects_v2(Bucket=S3_BUCKET_NAME, Prefix=s3_path, Delimiter='/', MaxKeys=1)
+        
+        if 'CommonPrefixes' in response:
+            # is directory
             s5cmd_command = f"s5cmd cp -n --sp '{prefix}/*' {os.path.join(local_path, s3_path)}/"
         else:
             s5cmd_command = f"s5cmd cp -n --sp {prefix} {os.path.join(local_path, s3_path)}"
@@ -167,10 +170,10 @@ def list_s3_objects(s3_path):
         objects.extend(page.get('Contents', []))
 
     for d in directories:
-        print(f"Directory: {d['Prefix']}")
+        logger.info(f"Directory: {d['Prefix']}")
 
     for obj in objects:
-        print(f"File: {obj['Key']}")
+        logger.info(f"File: {obj['Key']}")
 
 
 def delete_local_files(local_files):
@@ -179,12 +182,12 @@ def delete_local_files(local_files):
     """
     for file in local_files:
         os.remove(file)
-        print(f"Deleted {file}")
+        logger.info(f"Deleted {file}")
         ## Delete empty folders if any
         folder = os.path.dirname(file)
         if not os.listdir(folder):
             os.rmdir(folder)
-            print(f"Deleted {folder}")
+            logger.info(f"Deleted {folder}")
 
 
 def print_folders(files):
@@ -195,7 +198,7 @@ def print_folders(files):
     for file in files:
         folder = "/".join(file.split("/")[:-1]) + '/'
         if folder != last_folder:
-            print(folder)
+            logger.info(folder)
             last_folder = folder
 
 
@@ -207,7 +210,7 @@ def remove_s3_objects(objects_to_delete):
     if objects_to_delete:
         s3_client.delete_objects(Bucket=S3_BUCKET_NAME, Delete={'Objects': objects_to_delete})
         for obj in objects_to_delete:
-            print(f"Removed {obj['Key']} from S3")
+            logger.info(f"Removed {obj['Key']} from S3")
 
 
 def remove_s3_path(s3_path):
@@ -229,10 +232,10 @@ def upload_s3_objects(local_files, local_path='./'):
             s3_key = os.path.normpath(s3_key)
             try:
                 s3_client.head_object(Bucket=S3_BUCKET_NAME, Key=s3_key)
-                print(f"File {s3_key} already exists in S3")
+                logger.warning(f"File {s3_key} already exists in S3")
             except ClientError:
                 s3_client.upload_file(local_file, S3_BUCKET_NAME, s3_key)
-                print(f"Uploaded {local_file} to {s3_key}")
+                logger.info(f"Uploaded {local_file} to {s3_key}")
 
 
 def upload_s3_path(s3_path, local_path='./'):
@@ -267,23 +270,23 @@ def interactive_list_and_action(s3_path, local_path):
     else:
         filetype = "files"
     
-    print(f"Local {filetype} matching pattern:")
+    logger.info(f"Local {filetype} matching pattern:")
     local_files = get_local_files(s3_path, local_path)
     
     if filetype == "folders":
         print_folders(local_files)
     else:
         for file in local_files:
-            print(file)
+            logger.info(file)
 
-    print(f"\nS3 {filetype} matching pattern:")
+    logger.info(f"\nS3 {filetype} matching pattern:")
     s3_objects = get_s3_objects(s3_path)
     
     if filetype == "folders":
         print_folders(s3_objects)
     else:
         for file in s3_objects:
-            print(file)
+            logger.info(file)
 
     action = input("\nChoose an action [delete (local), remove (S3), download, upload, exit]: ").strip().lower()
     if action == "delete":
@@ -297,7 +300,7 @@ def interactive_list_and_action(s3_path, local_path):
     elif action == "exit":
         pass
     else:
-        print("Invalid action")
+        logger.error("Invalid action")
 
 
 if __name__ == "__main__":
@@ -330,7 +333,7 @@ if __name__ == "__main__":
             print_folders(s3_objects)
         else:
             for obj in s3_objects:
-                print(obj)
+                logger.info(obj)
     elif args.list:
         list_s3_objects(s3_path)
     elif args.download:
