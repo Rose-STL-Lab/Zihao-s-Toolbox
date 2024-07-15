@@ -347,11 +347,11 @@ def monitor(folder_path, interval):
             if time.time() - os.path.getmtime(file_path) > interval:
                 logger.info(f"New file detected and stable: {file}")
                 added_files.remove(file)
-                os.system(f"make upload file={file_path}")
+                upload_s3_path(file_path)
 
         for file in removed_files:
             logger.info(f"File removed: {file}")
-            os.system(f"make remove file={folder_path / file}")
+            remove_s3_path(folder_path / file)
 
         last_seen_files = current_files
 
