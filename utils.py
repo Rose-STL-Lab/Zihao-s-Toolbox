@@ -6,39 +6,42 @@ class CustomLogger():
                 from loguru import logger
                 self.logger = logger
             except ImportError:
-                import logging
-                logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] %(message)s')
-                self.logger = logging
+                self.logger = None
         else:
             self.logger = logger
 
     def info(self, message):
         if self.logger:
-            self.logger.info(message)
+            frame = self.logger.opt(depth=1)
+            frame.info(message)
         else:
             print(f"[INFO] {message}")
 
     def debug(self, message):
         if self.logger:
-            self.logger.debug(message)
+            frame = self.logger.opt(depth=1)
+            frame.debug(message)
         else:
             print(f"[DEBUG] {message}")
 
     def warning(self, message):
         if self.logger:
-            self.logger.warning(message)
+            frame = self.logger.opt(depth=1)
+            frame.warning(message)
         else:
             print(f"[WARNING] {message}")
 
     def error(self, message):
         if self.logger:
-            self.logger.error(message)
+            frame = self.logger.opt(depth=1)
+            frame.error(message)
         else:
             print(f"[ERROR] {message}")
 
     def critical(self, message):
         if self.logger:
-            self.logger.critical(message)
+            frame = self.logger.opt(depth=1)
+            frame.critical(message)
         else:
             print(f"[CRITICAL] {message}")
 
