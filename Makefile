@@ -266,6 +266,11 @@ remove: prompt_for_file
 	@$(PYTHON) src/toolbox/s3utils.py --remove $(file)
 rm: remove
 
+## Monitor a checkpoint folder for continuous upload & remove
+monitor: prompt_for_file
+	@$(PYTHON) src/toolbox/s3utils.py --monitor $(file)
+mn: monitor
+
 #################################################################################
 # Environment related                                                           #
 #################################################################################

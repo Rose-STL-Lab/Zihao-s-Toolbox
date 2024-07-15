@@ -8,6 +8,8 @@ from botocore.client import Config
 import shutil
 import sys
 from toolbox.utils import CustomLogger
+import time
+from pathlib import Path
 
 
 S3_ENDPOINT_URL = os.getenv('S3_ENDPOINT_URL')
@@ -301,6 +303,53 @@ def interactive_list_and_action(s3_path, local_path):
         pass
     else:
         logger.error("Invalid action")
+        
+        
+def list_files(directory):
+    """ List all non-hidden files recursively """
+    for root, dirs, files in os.walk(directory):
+        # Exclude hidden files and directories
+        files = [f for f in files if not f.startswith('.')]
+        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        for file in files:
+            yield Path(root) / file
+        
+
+def monitor(folder_path, interval):
+    # Convert the relative path to an absolute path
+    folder_path = Path(folder_path).resolve()
+
+    # Check if the path is indeed a relative path
+    if not folder_path.is_relative_to(Path.cwd()):
+        logger.error(f"Please provide a relative path: {folder_path}")
+        return
+
+    # Initial check for existing files
+    last_seen_files = set(list_files(folder_path))
+    logger.debug(f"Initial files: {last_seen_files}")
+
+    added_files = set()
+    while True:
+        time.sleep(interval)
+        current_files = set(list_files(folder_path))
+        added_files.update(current_files - last_seen_files)
+        removed_files = last_seen_files - current_files
+
+        for file in added_files.copy():
+            # Check if the file has not been modified for at least 'interval' seconds
+            file_path = folder_path / file
+            logger.debug("New file detected: " + str(file_path))
+            logger.debug("Time since last modification: " + str(time.time() - os.path.getmtime(file_path)))
+            if time.time() - os.path.getmtime(file_path) > interval:
+                logger.info(f"New file detected and stable: {file}")
+                added_files.remove(file)
+                os.system(f"make upload file={file_path}")
+
+        for file in removed_files:
+            logger.info(f"File removed: {file}")
+            os.system(f"make remove file={folder_path / file}")
+
+        last_seen_files = current_files
 
 
 if __name__ == "__main__":
@@ -319,6 +368,8 @@ if __name__ == "__main__":
     parser.add_argument("--delete", help="Delete local files", action="store_true")
     parser.add_argument("--interactive", help="Interactive mode", action="store_true")
     parser.add_argument("--local_path", help="Local path", type=str, default="./")
+    parser.add_argument("--monitor", help="Monitor local path for changes", action="store_true")
+    parser.add_argument("--interval", type=int, default=5, help="Polling interval in seconds.")
     parser.add_argument("path", help="The S3 or local path pattern", type=str)
 
     args = parser.parse_args()
@@ -326,7 +377,9 @@ if __name__ == "__main__":
     s3_path = args.path
     local_path = args.local_path
 
-    if args.find:
+    if args.monitor:
+        monitor(args.path, args.interval)
+    elif args.find:
         file_type = "folders" if s3_path.endswith("/") else "files"
         s3_objects = get_s3_objects(s3_path + "**" if file_type == "folders" else s3_path)
         if file_type == "folders":
