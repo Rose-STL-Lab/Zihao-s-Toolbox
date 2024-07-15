@@ -40,10 +40,13 @@ monitor() {
             current_time=$(date +%s)
             time_diff=$((current_time - modification_time))
             echo "Time since last modification: $time_diff seconds" >&2
+            # Convert file from absolute path to relative path
+            file=$(realpath --relative-to=`pwd` "$file")
 
             if ((time_diff > interval)); then
                 echo "New file detected and stable: $file"
                 if command -v s5cmd >/dev/null 2>&1; then
+                    echo "s3://$S3_BUCKET_NAME/$file"
                     s5cmd cp -n --sp "$file" "s3://$S3_BUCKET_NAME/$file"
                 else
                     make upload file="$file"
@@ -54,6 +57,8 @@ monitor() {
         done
 
         for file in $removed_files; do
+            file=$(realpath --relative-to=`pwd` "$file")
+            
             echo "File removed: $file"
             if command -v s5cmd >/dev/null 2>&1; then
                 s5cmd rm "s3://$S3_BUCKET_NAME/$file"

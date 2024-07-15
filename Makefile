@@ -268,7 +268,8 @@ rm: remove
 
 ## Monitor a checkpoint folder for continuous upload & remove
 monitor: prompt_for_file
-	@$(PYTHON) src/toolbox/s3utils.py --monitor $(file)
+	chmod +x src/toolbox/monitor.sh
+	./src/toolbox/monitor.sh $(file) 5
 mn: monitor
 
 #################################################################################
