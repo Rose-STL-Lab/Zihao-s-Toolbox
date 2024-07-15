@@ -1,11 +1,14 @@
 from toolbox.kubeutils import create_config, batch, settings, file_to_script
-from toolbox.utils import load_env_file
+from toolbox.utils import load_env_file, CustomLogger
 import yaml
 import argparse
 import os
 import inspect
 from typing import get_type_hints, get_origin, get_args, Dict, List, Any, Union
 import subprocess
+
+
+logger = CustomLogger()
 
 
 def is_generic_type(tp):
@@ -277,9 +280,9 @@ if __name__ == '__main__':
                 command_to_run = f"kubectl exec -n {settings['namespace']} {pod_name} -- /bin/bash -c \"{script}\""
                 # Execute the command using os.system
                 if os.system(command_to_run) != 0:  # os.system returns 0 if successful
-                    print(f"Failed to copy files to pod {pod_name}.")
+                    logger.error(f"Failed to copy files to pod {pod_name}.")
                 else:
-                    print(f"Files copied successfully to {pod_name}.")
+                    logger.info(f"Files copied successfully to {pod_name}.")
                     exit(0)
             else:
                 raise ValueError("Cannot copy files without a pod.")
@@ -287,7 +290,7 @@ if __name__ == '__main__':
         elif "pod" in mode:
             # Handle pod creation
             while check_pod_exists(pod_name, settings['namespace']):
-                print(f"Pod '{pod_name}' already exists. Modifying the name to avoid conflicts.")
+                logger.debug(f"Pod '{pod_name}' already exists. Modifying the name to avoid conflicts.")
                 pod_name = modify_pod_name(pod_name)
             config['metadata']['name'] = pod_name
             with open(f"build/{name}.yaml", "w") as f:
@@ -296,7 +299,7 @@ if __name__ == '__main__':
                 os.system(f"kubectl apply -f build/{name}.yaml")
             else:
                 assert mode == "pod-dryrun", "Unrecognized mode"
-                print(f"Pod configuration written to build/{name}.yaml")
+                logger.info(f"Pod configuration written to build/{name}.yaml")
     else:
         if type(run_configs) is dict:
             batch(

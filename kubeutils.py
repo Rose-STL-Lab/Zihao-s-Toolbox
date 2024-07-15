@@ -165,7 +165,32 @@ def deploy_job(name, overwrite=False):
         delete_job(name)
         logger.info(f"Creating job '{name}'.")
         create_job(name)
+        
+        
+def validate(command):
+    # Split the command into individual words
+    words = command.split()
 
+    # Initialize variables to track the presence of 'make' or 'python'
+    command_found = False
+    start_idx = 0
+
+    # Iterate through each word in the command
+    for i, word in enumerate(words):
+        # Index in the original command
+        idx = command.find(word, sum(len(w) + 1 for w in words[:i]))
+        if word in ['make', 'python']:
+            # If 'make' or 'python' was found previously without ';' or '&&' in between
+            if command_found:
+                end_idx = idx + len(word)
+                logger.critical("You may have forgotten to separate different lines of commands with ; or &&: "
+                                f"... {command[start_idx:end_idx]} ...")
+            command_found = True
+            start_idx = idx
+        elif word in [';', '&&']:
+            # Reset the flag when ';' or '&&' is encountered
+            command_found = False
+    
 
 def create_config(
     # Pod config
@@ -685,6 +710,7 @@ def batch(
                             raise Exception("Unsupported OS")
                         if mode == "local":
                             logger.info(f"Running {json.dumps(hparam_dict, indent=2)} ... \n```\n{cmd}\n```")
+                            validate(cmd)
                             os.system(cmd)
                             continue
                         else:
@@ -749,6 +775,7 @@ def batch(
                     else:
                         logger.info(f"Generated kube config {json.dumps(hparam_dict, indent=2)} ... ")
                         logger.debug(f"```\n{cmd}\n```\nand saved to build/{name}.yaml")
+                    validate(cmd)
 
                     name = config["metadata"]["name"]
                     yaml.Dumper.ignore_aliases = lambda *_: True
