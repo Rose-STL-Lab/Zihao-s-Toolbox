@@ -1,3 +1,48 @@
+class CustomLogger():
+    def __init__(self, logger=None):
+        # Try to import loguru and set it up if available
+        if logger is None:
+            try:
+                from loguru import logger
+                self.logger = logger
+            except ImportError:
+                import logging
+                logging.basicConfig(level=logging.DEBUG, format='[%(levelname)s] %(message)s')
+                self.logger = logging
+        else:
+            self.logger = logger
+
+    def info(self, message):
+        if self.logger:
+            self.logger.info(message)
+        else:
+            print(f"[INFO] {message}")
+
+    def debug(self, message):
+        if self.logger:
+            self.logger.debug(message)
+        else:
+            print(f"[DEBUG] {message}")
+
+    def warning(self, message):
+        if self.logger:
+            self.logger.warning(message)
+        else:
+            print(f"[WARNING] {message}")
+
+    def error(self, message):
+        if self.logger:
+            self.logger.error(message)
+        else:
+            print(f"[ERROR] {message}")
+
+    def critical(self, message):
+        if self.logger:
+            self.logger.critical(message)
+        else:
+            print(f"[CRITICAL] {message}")
+
+
 def load_env_file(file_path='.env'):
     env_dict = {}
     with open(file_path, 'r') as file:

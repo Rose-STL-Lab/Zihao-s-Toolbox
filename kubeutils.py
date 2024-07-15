@@ -12,10 +12,14 @@ import sys
 import re
 import platform
 import hashlib
+from .utils import CustomLogger
 
 
 with open("config/kube.yaml", "r") as f:
     settings = yaml.safe_load(f)
+
+
+logger = CustomLogger()
 
 
 def is_number(s):
@@ -60,7 +64,7 @@ def is_binary_file(file_path):
             return False
         return bool(chunk.translate(None, text_chars))
     except Exception as e:
-        print(f"[Error] Could not read file {file_path}: {e}")
+        logger.error(f"Could not read file {file_path}: {e}")
         return True
 
 
@@ -70,8 +74,7 @@ def file_to_script(file):
     for f in file:
         normalized_path = os.path.normpath(f)
         if not os.path.exists(normalized_path):
-            print(
-                f"[Error] File or directory {normalized_path} does not exist. Quitting...")
+            logger.error(f"File or directory {normalized_path} does not exist. Quitting...")
             sys.exit(1)
 
         if os.path.isdir(normalized_path):
@@ -79,7 +82,7 @@ def file_to_script(file):
                 for file_name in files:
                     file_path = os.path.join(root, file_name)
                     if is_binary_file(file_path):
-                        print(f"[Warning] Skipping binary file: {file_path}")
+                        logger.warning(f"Skipping binary file: {file_path}")
                         continue
                     encoded_content = base64_encode_file_content(file_path)
                     # Make sure the directories exist in the startup script
@@ -91,7 +94,7 @@ def file_to_script(file):
                         f"echo '{encoded_content}' | base64 -d | tr -d '\\r' > '{escaped_f}' && echo >> '{escaped_f}' ")
         else:
             if is_binary_file(normalized_path):
-                print(f"[Warning] Skipping binary file: {normalized_path}")
+                logger.warning(f"Skipping binary file: {normalized_path}")
                 continue
             encoded_content = base64_encode_file_content(normalized_path)
             escaped_f = normalized_path.replace("'", "'\\''")
@@ -148,21 +151,19 @@ def deploy_job(name, overwrite=False):
     status = check_job_status(name)
 
     if (status == "succeeded" or status == "running") and not overwrite:
-        print(
-            f"Job '{name}' is already {status}. Doing nothing.")
+        logger.info(f"Job '{name}' is already {status}. Doing nothing.")
     elif status == "failed":
-        print(
-            f"Job '{name}' has failed. Deleting the job.")
+        logger.info(f"Job '{name}' has failed. Deleting the job.")
         delete_job(name)
-        print(f"Creating job '{name}'.")
+        logger.info(f"Creating job '{name}'.")
         create_job(name)
     elif status == "not_found":
-        print(f"Job '{name}' not found. Creating the job.")
+        logger.info(f"Job '{name}' not found. Creating the job.")
         create_job(name)
     elif overwrite:
-        print(f"Job is already {status}, overwriting...")
+        logger.info(f"Job is already {status}, overwriting...")
         delete_job(name)
-        print(f"Creating job '{name}'.")
+        logger.info(f"Creating job '{name}'.")
         create_job(name)
 
 
@@ -214,7 +215,7 @@ def create_config(
 
     for key, value in ignored.items():
         if key != "hparam":
-            print(f"[Warning] Key {key}={value} is unknown. Ignoring it.")
+            logger.warning(f"Key {key}={value} is unknown. Ignoring it.")
 
     # Initialization
     if prefix is None and "prefix" in settings:
@@ -663,8 +664,7 @@ def batch(
                     # Remove projectwise keys
                     for key in ["project_name", "user", "namespace"]:
                         if key in config_kwargs:
-                            print(
-                                f"[Warning] Key {key}={config_kwargs[key]} is not allowed in {name}. Ignoring it.")
+                            logger.warning(f"Key {key}={config_kwargs[key]} is not allowed in {name}. Ignoring it.")
                             del config_kwargs[key]
 
                     # Remove comments between ## and ##
@@ -684,11 +684,12 @@ def batch(
                         else:
                             raise Exception("Unsupported OS")
                         if mode == "local":
-                            print(f"Running {json.dumps(hparam_dict, indent=2)} ... \n```\n{cmd}\n```")
+                            logger.info(f"Running {json.dumps(hparam_dict, indent=2)} ... \n```\n{cmd}\n```")
                             os.system(cmd)
                             continue
                         else:
                             assert mode == "local-dryrun", "Invalid mode"
+                            # Not using logger for redirection
                             print(f"{name}: {cmd}")
                             continue
 
@@ -698,26 +699,22 @@ def batch(
                     hparam_dict = {k[1:] if k.startswith(
                         "_") else k: v for k, v in hparam_dict.items()}
                     if "gpu_count" in hparam_dict:
-                        print(
-                            f"GPU count overriden by hparam: {hparam_dict['gpu_count']}")
+                        logger.debug(f"GPU count overriden by hparam: {hparam_dict['gpu_count']}")
                         config_kwargs["gpu_count"] = int(
                             hparam_dict["gpu_count"])
                     if "gpu_whitelist" in hparam_dict:
-                        print(
-                            f"GPU white list overriden by hparam: {hparam_dict['gpu_whitelist']}")
+                        logger.debug(f"GPU white list overriden by hparam: {hparam_dict['gpu_whitelist']}")
                         if type(hparam_dict["gpu_whitelist"]) is str:
                             config_kwargs["gpu_whitelist"] = [
                                 hparam_dict["gpu_whitelist"]]
                         else:
                             config_kwargs["gpu_whitelist"] = hparam_dict["gpu_whitelist"]
                     if "cpu_count" in hparam_dict:
-                        print(
-                            f"CPU count overriden by hparam: {hparam_dict['cpu_count']}")
+                        logger.debug(f"CPU count overriden by hparam: {hparam_dict['cpu_count']}")
                         config_kwargs["cpu_count"] = int(
                             hparam_dict["cpu_count"])
                     if "memory" in hparam_dict:
-                        print(
-                            f"Memory overriden by hparam: {hparam_dict['memory']}")
+                        logger.debug(f"Memory overriden by hparam: {hparam_dict['memory']}")
                         config_kwargs["memory"] = int(hparam_dict["memory"])
                         
                     if "shared" in config:
@@ -738,8 +735,7 @@ def batch(
                             config_kwargs['dev_command'],
                             config["spec"]["template"]["spec"]["containers"][0]["command"][-1]
                         )
-                        print(
-                            f"Command overriden by hparam: {config_kwargs['dev_command']}")
+                        logger.debug(f"Command overriden by hparam: {config_kwargs['dev_command']}")
                     cmd = config["spec"]["template"]["spec"]["containers"][0]["command"][-1].strip()
 
                     if "source startup.sh;" in cmd:
@@ -747,11 +743,12 @@ def batch(
                         cmd = cmd[cmd.index("source startup.sh;"):]
 
                     if "run_mode" in hparam_dict and "dev" in hparam_dict["run_mode"] and "dev_command" in config_kwargs:
-                        print(f"Generated kube config {json.dumps(hparam_dict, indent=2)} ... \n"
-                              f"\nDEV command: \n```\n{cmd}\n```"
-                              f"\nORIGINAL command: \n```\n{original_command}\n```\nand saved to build/{name}.yaml")
+                        logger.info(f"Generated kube config {json.dumps(hparam_dict, indent=2)} ... \n"
+                                    f"\nDEV command: \n```\n{cmd}\n```"
+                                    f"\nORIGINAL command: \n```\n{original_command}\n```\nand saved to build/{name}.yaml")
                     else:
-                        print(f"Generated kube config {json.dumps(hparam_dict, indent=2)} ... \n```\n{cmd}\n```\nand saved to build/{name}.yaml")
+                        logger.info(f"Generated kube config {json.dumps(hparam_dict, indent=2)} ... ")
+                        logger.debug(f"```\n{cmd}\n```\nand saved to build/{name}.yaml")
 
                     name = config["metadata"]["name"]
                     yaml.Dumper.ignore_aliases = lambda *_: True
@@ -854,7 +851,7 @@ def batch(
                     with open(f"build/{merge_name}.yaml", "w") as f:
                         yaml.dump(config, f, indent=2, width=float("inf"))
                         log = log[:-2] + f" are merged into {merge_name} and saved to build/{merge_name}.yaml."
-                        print(log)
+                        logger.debug(log)
                     if mode == "job":
                         deploy_job(merge_name, overwrite)
 

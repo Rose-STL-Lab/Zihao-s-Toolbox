@@ -12,6 +12,19 @@ This toolbox is designed to facilitate the synchronization between a Kubernetes 
 - Capability to execute all combinations of experiments in parallel with a single command.
 
 
+### Requirements
+
+Python packages:
+
+- boto3 (required)
+- pyyaml (required)
+- loguru (optional, for better logging)
+
+Other requirements:
+
+- [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) (required, for interacting with Kubernetes cluster)
+- [s5cmd](https://github.com/peak/s5cmd) (optional, needed to be in PATH, for faster S3 operations)
+
 ## 1. Quick Start (for Nautilus user):
 
 Imagine a scenario where you're handling "machine learning" workloads with two datasets you wish to use both in the cluster and locally, and you have two baseline models to evaluate.
@@ -287,7 +300,7 @@ env:
   <env-key>: <env-value>
 
 ## If startup_script is not explicitly specified, the script will automatically pull the latest git repo using ssh_host and ssh_port, and activate the default environment using conda_home and conda_env_name.
-startup_script: str
+startup_script: str, default to pull the latest git repo and submodules, activate the default conda environment, switch external S3 to internal S3 endpoint
 conda_home: str, default to /opt/conda
 ssh_host:   str, default to gitlab-ssh.nrp-nautilus.io 
 ssh_port:   int, default to 30622
@@ -345,12 +358,6 @@ Your GitLab username would be used as user to label your kube workloads (label: 
 
 
 ## 3. S3 Utilities Specification
-
-### Requirements
-
-```
-poetry add boto3
-```
 
 ### Usage
 
