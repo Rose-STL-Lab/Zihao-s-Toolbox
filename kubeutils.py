@@ -625,7 +625,7 @@ def batch(
     if project_name is None:
         project_name = settings["project_name"]
 
-    assert mode in ["job", "local", "dryrun", "local-dryrun", "pod-dryrun"]
+    assert mode in ["job", "local", "dryrun", "local-dryrun", "local-first", "pod-dryrun"]
 
     if "hparam" in run_configs:
         for key, val in run_configs["hparam"].items():
@@ -723,6 +723,11 @@ def batch(
                             validate(cmd)
                             os.system(cmd)
                             continue
+                        elif mode == "local-first":
+                            logger.info(f"Running {json.dumps(hparam_dict, indent=2)} ... \n```\n{cmd}\n```")
+                            validate(cmd)
+                            os.system(cmd)
+                            return
                         else:
                             assert mode == "local-dryrun", "Invalid mode"
                             # Not using logger for redirection

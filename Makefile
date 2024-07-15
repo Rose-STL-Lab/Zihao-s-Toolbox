@@ -134,12 +134,15 @@ define launch_command
 	python launch.py $(1)
 endef
 
+## Running the commands locally and sequentially
 local: kube
 	$(PYTHON) launch.py --mode local
 
+## Running the jobs on the cluster in parallel
 job: kube
 	$(PYTHON) launch.py --mode job --overwrite $(overwrite)
 
+## Launch a single pod for debug
 pod: kube
 ifdef pod
 	$(PYTHON) launch.py --mode pod --pod $(pod)
@@ -147,15 +150,23 @@ else
 	$(PYTHON) launch.py --mode pod
 endif
 
+## Generate the commands for launch batch jobs, but do not actually deploy them
 dryrun: kube
 	$(PYTHON) launch.py --mode dryrun
 
+## Generate the commands for running locally, but do not actually run them
 local-dryrun: kube
 	$(PYTHON) launch.py --mode local-dryrun
 
+## Run the first target in the launch.yaml file, but no more than that
+local-first: kube
+	$(PYTHON) launch.py --mode local-first
+
+## Generate the commands for launch a pod, but do not actually deploy them
 pod-dryrun: kube
 	$(PYTHON) launch.py --mode pod-dryrun
 
+## Copy files (in file section) from the pod to local
 copy: kube
 ifdef pod
 	$(PYTHON) launch.py --mode copy_files --pod $(pod)
