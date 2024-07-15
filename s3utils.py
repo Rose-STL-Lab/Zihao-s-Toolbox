@@ -166,6 +166,7 @@ def list_s3_objects(s3_path):
     page_iterator = paginator.paginate(Bucket=S3_BUCKET_NAME, Prefix=prefix, Delimiter='/')
     objects = []
     directories = []
+    rtn = []
 
     for page in page_iterator:
         directories.extend(page.get('CommonPrefixes', []))
@@ -173,9 +174,12 @@ def list_s3_objects(s3_path):
 
     for d in directories:
         logger.info(f"Directory: {d['Prefix']}")
+        rtn.append(d['Prefix'])
 
     for obj in objects:
         logger.info(f"File: {obj['Key']}")
+        rtn.append(obj['Key'])
+    return rtn
 
 
 def delete_local_files(local_files):
