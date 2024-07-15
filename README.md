@@ -78,10 +78,6 @@ mkdir -p config; vim config/kube.yaml
 project_name: example
 namespace: <NAMESPACE>
 user: <USER>
-registry_host: gitlab-registry.nrp-nautilus.io
-ssh_host: gitlab-ssh.nrp-nautilus.io
-ssh_port: 30622
-conda_home: /opt/conda
 image: gitlab-registry.nrp-nautilus.io/zihaozhou/example
 ```
 

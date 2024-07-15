@@ -702,7 +702,11 @@ def batch(
                             model_configs[model]['command'] = model_configs[model]['local_command']
                         cmd = fill_val({'_': model_configs[model]['command']}, hparam_dict)[
                             0][0]['_']
-                        cmd = re.sub(r'\[([^\]]*)\]\(([^\)]*)\)', r'\1', cmd).strip()
+                        if "NODE_NAME" in os.environ:
+                            # make local inside the node
+                            cmd = re.sub(r'\[([^\]]*)\]\(([^\)]*)\)', r'\2', cmd).strip()
+                        else:
+                            cmd = re.sub(r'\[([^\]]*)\]\(([^\)]*)\)', r'\1', cmd).strip()
                         
                         system_type = platform.system()
                         if system_type == 'Linux':
