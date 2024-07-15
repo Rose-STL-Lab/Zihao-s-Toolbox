@@ -320,12 +320,15 @@ if [ -f src/toolbox/s3region.sh ]; then
 fi
 """
             )
-    if '.env' not in file:
-        file.append('.env')
-    if 'config/kube.yaml' not in file:
-        file.append('config/kube.yaml')
+    if file is not None:
+        if '.env' not in file:
+            file.append('.env')
+        if 'config/kube.yaml' not in file:
+            file.append('config/kube.yaml')
+        if 'config/launch.yaml' not in file:
+            file.append('config/launch.yaml')
 
-    startup_script += "\n".join(file_to_script(file))
+        startup_script += "\n".join(file_to_script(file))
     # Save startup script to build/
     with open(f"build/{name}.sh", "w") as f:
         f.write(startup_script)
