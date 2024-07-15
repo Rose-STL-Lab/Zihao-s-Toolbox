@@ -49,6 +49,9 @@ def abbreviate(s):
 def base64_encode_file_content(file_path):
     with open(file_path, 'rb') as file:
         file_content = file.read()
+        if '.env' in file_path:
+            # Remove CUDA_VISIBLE_DEVICES from .env file
+            file_content = re.sub(b'^CUDA_VISIBLE_DEVICES=.*\n', b'', file_content, flags=re.MULTILINE)
         # Base64 encode the binary data
         base64_content = base64.b64encode(file_content).decode('utf-8')
     return base64_content
