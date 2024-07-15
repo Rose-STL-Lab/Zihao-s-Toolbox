@@ -7,7 +7,7 @@ from botocore import UNSIGNED
 from botocore.client import Config
 import shutil
 import sys
-from utils import CustomLogger
+from toolbox.utils import CustomLogger
 
 
 S3_ENDPOINT_URL = os.getenv('S3_ENDPOINT_URL')
