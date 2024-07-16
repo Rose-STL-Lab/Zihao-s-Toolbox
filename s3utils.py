@@ -160,6 +160,7 @@ def list_s3_objects(s3_path):
     """
     List all directories / files in S3 bucket under the given path.
     """
+    s3_path = os.path.normpath(s3_path)
     prefix = s3_path.lstrip('/')
 
     paginator = s3_client.get_paginator('list_objects_v2')
