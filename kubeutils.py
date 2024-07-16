@@ -18,7 +18,7 @@ from .utils import CustomLogger
 with open("config/kube.yaml", "r") as f:
     settings = yaml.safe_load(f)
 
-
+server_only_pattern = r'^\[([^\]]*)\]|\(([^()]*(?:\([^()]*\)[^()]*)*[^()]*)\)$'
 logger = CustomLogger()
 
 
@@ -377,7 +377,7 @@ fi
         "labels": {"user": user, "project": project_name}
     }
     command = re.sub(r'##(.*?)##', '', command)
-    command = re.sub(r'\[([^\]]*)\]\(([^\)]*)\)', r'\2', command)
+    command = re.sub(server_only_pattern, r'\2', command)
 
     template = {
         "containers": [
@@ -708,9 +708,9 @@ def batch(
                             0][0]['_']
                         if "NODE_NAME" in os.environ:
                             # make local inside the node
-                            cmd = re.sub(r'\[([^\]]*)\]\(([^\)]*)\)', r'\2', cmd).strip()
+                            cmd = re.sub(server_only_pattern, r'\2', cmd).strip()
                         else:
-                            cmd = re.sub(r'\[([^\]]*)\]\(([^\)]*)\)', r'\1', cmd).strip()
+                            cmd = re.sub(server_only_pattern, r'\1', cmd).strip()
                         
                         system_type = platform.system()
                         if system_type == 'Linux':
