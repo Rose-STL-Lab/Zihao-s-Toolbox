@@ -182,12 +182,13 @@ def validate(command):
     for i, word in enumerate(words):
         # Index in the original command
         idx = command.find(word, sum(len(w) + 1 for w in words[:i]))
-        if word in ['make', 'python']:
+        if 'python' in word or 'make' in word:
             # If 'make' or 'python' was found previously without ';' or '&&' in between
             if command_found:
                 end_idx = idx + len(word)
                 logger.critical("You may have forgotten to separate different lines of commands with ; or &&: "
                                 f"... {command[start_idx:end_idx]} ...")
+                return
             command_found = True
             start_idx = idx
         elif word in [';', '&&']:
