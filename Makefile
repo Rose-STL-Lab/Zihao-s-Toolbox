@@ -4,6 +4,7 @@ $(error "__init__.py is present in the current directory. Please install this as
 endif
 
 .PHONY: all $(MAKECMDGOALS)
+.NOTPARALLEL: all $(MAKECMDGOALS)
 
 #################################################################################
 # GLOBALS                                                                       #
@@ -268,8 +269,7 @@ rm: remove
 
 ## Monitor a checkpoint folder for continuous upload & remove
 monitor: prompt_for_file
-	chmod +x src/toolbox/monitor.sh
-	./src/toolbox/monitor.sh $(file) 5
+	@$(PYTHON) src/toolbox/s3utils.py --monitor $(file)
 mn: monitor
 
 #################################################################################
