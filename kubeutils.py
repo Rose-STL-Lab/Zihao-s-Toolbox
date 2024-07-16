@@ -191,8 +191,8 @@ def validate(command):
                 return
             command_found = True
             start_idx = idx
-        elif word in [';', '&&']:
-            # Reset the flag when ';' or '&&' is encountered
+        elif ';' in word or '&' in word:
+            # Reset the flag when ';' or '&' is encountered
             command_found = False
     
 
