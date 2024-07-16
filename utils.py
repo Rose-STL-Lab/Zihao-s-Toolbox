@@ -1,3 +1,6 @@
+import os
+
+
 class CustomLogger():
     def __init__(self, logger=None):
         # Try to import loguru and set it up if available
@@ -9,6 +12,10 @@ class CustomLogger():
                 self.logger = None
         else:
             self.logger = logger
+            
+    def add(self, *args, **kwargs):
+        if self.logger:
+            return self.logger.add(*args, **kwargs)
 
     def info(self, message):
         if self.logger:
@@ -223,7 +230,6 @@ def load_wandb_artifact(
     """Load single artifact from wandb and return the model."""
     from loguru import logger
     import tempfile
-    import os
     
     with tempfile.TemporaryDirectory() as tmp:
         # Download the checkpoint to the temporary file
@@ -276,3 +282,30 @@ def show_3d_figures(fig_3d):
         figs.append(adjusted_fig)
     
     return plotly_to_svg_html(figs)
+
+
+def is_stale(lock_path):
+    if not os.path.exists(lock_path):
+        return False
+    with open(lock_path, 'r') as f:
+        pid = int(f.read())
+    # Check if process with the PID is still running
+    return not os.path.exists(f'/proc/{pid}')
+
+
+def acquire_lock(lock_path):
+    if os.path.exists(lock_path):
+        if not is_stale(lock_path):
+            print("Another instance is running.")
+            exit(1)
+        else:
+            print("Stale lock found. Removing.")
+            release_lock(lock_path)
+    
+    with open(lock_path, 'w') as f:
+        f.write(str(os.getpid()))
+
+
+def release_lock(lock_path):
+    if os.path.exists(lock_path):
+        os.remove(lock_path)

@@ -7,7 +7,7 @@ from botocore import UNSIGNED
 from botocore.client import Config
 import shutil
 import sys
-from toolbox.utils import CustomLogger
+from toolbox.utils import CustomLogger, acquire_lock, release_lock
 import time
 from pathlib import Path
 
@@ -320,42 +320,53 @@ def list_files(directory):
             yield Path(root) / file
         
 
-def monitor(folder_path, interval):
+def monitor(folder_path, interval, log_file="monitor.log"):
+    # Log to monitor.log by default
+    logger.add(log_file, rotation="1 week")
+    
     # Convert the relative path to an absolute path
     folder_path = Path(folder_path).resolve()
+    lock_path = folder_path / ".monitor.lock"
+    
+    try:
+        acquire_lock(lock_path)
+        
+        # Initial check for existing files
+        last_seen_files = set(list_files(folder_path))
+        logger.debug(f"Initial files: {last_seen_files}")
 
-    # Check if the path is indeed a relative path
-    if not folder_path.is_relative_to(Path.cwd()):
-        logger.error(f"Please provide a relative path: {folder_path}")
-        return
+        added_files = set()
+        while True:
+            time.sleep(interval)
+            current_files = set(list_files(folder_path))
+            added_files.update(current_files - last_seen_files)
+            removed_files = last_seen_files - current_files
 
-    # Initial check for existing files
-    last_seen_files = set(list_files(folder_path))
-    logger.debug(f"Initial files: {last_seen_files}")
+            for file in added_files.copy():
+                # Check if the file has not been modified for at least 'interval' seconds
+                file_path = folder_path / file
+                file_path = file_path.relative_to(Path.cwd())
+                
+                logger.debug(f"New file detected: {file_path}")
+                logger.debug(f"Time since last modification: {(time.time() - os.path.getmtime(file_path)):.5f}")
+                if time.time() - os.path.getmtime(file_path) > interval:
+                    logger.info(f"New file detected and stable: {file}")
+                    added_files.remove(file)
+                    upload_s3_path(file_path)
+                    logger.info(f"File uploaded: s3://{S3_BUCKET_NAME}/{file_path}")
 
-    added_files = set()
-    while True:
-        time.sleep(interval)
-        current_files = set(list_files(folder_path))
-        added_files.update(current_files - last_seen_files)
-        removed_files = last_seen_files - current_files
+            for file in removed_files:
+                file_path = folder_path / file
+                file_path = file_path.relative_to(Path.cwd())
+                
+                logger.info(f"File removed: {file_path}")
+                remove_s3_path(file_path)
 
-        for file in added_files.copy():
-            # Check if the file has not been modified for at least 'interval' seconds
-            file_path = folder_path / file
-            logger.debug("New file detected: " + str(file_path))
-            logger.debug("Time since last modification: " + str(time.time() - os.path.getmtime(file_path)))
-            if time.time() - os.path.getmtime(file_path) > interval:
-                logger.info(f"New file detected and stable: {file}")
-                added_files.remove(file)
-                upload_s3_path(file_path)
+            last_seen_files = current_files
 
-        for file in removed_files:
-            logger.info(f"File removed: {file}")
-            remove_s3_path(folder_path / file)
-
-        last_seen_files = current_files
-
+    finally:
+        release_lock(lock_path)
+    
 
 if __name__ == "__main__":
     import argparse
