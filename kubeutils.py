@@ -265,7 +265,10 @@ def create_config(
     if project_name is None:
         project_name = settings["project_name"]
     if conda_env_name is None:
-        conda_env_name = project_name
+        if "conda_env_name" in settings and settings["conda_env_name"] is not None:
+            conda_env_name = settings["conda_env_name"]
+        else:
+            conda_env_name = project_name
     if image is None:
         if "image" in settings:
             image = settings["image"]
@@ -310,13 +313,17 @@ def create_config(
                 else:
                     ssh_port = "30622"
                     ssh_host = "gitlab-ssh.nrp-nautilus.io"
+            if conda_env_name != "base":
+                conda_env_path = f"{conda_home}/envs/{conda_env_name}"
+            else:
+                conda_env_path = f"{conda_home}"
             startup_script = (
                 f"""#!/bin/bash
 mkdir -p config
 git pull
 git submodule update --init --recursive
 echo "conda activate {conda_env_name}; " >> ~/.bashrc
-export PATH="{conda_home}/envs/{conda_env_name}/bin/:$PATH"
+export PATH="{conda_env_path}/bin/:$PATH"
 echo 'if [ -f "$HOME/src/toolbox/s3region.sh" ]; then source "$HOME/src/tool outbox/s3region.sh"; fi' >> ~/.bashrc
 if [ -f src/toolbox/s3region.sh ]; then
     chmod +x src/toolbox/s3region.sh

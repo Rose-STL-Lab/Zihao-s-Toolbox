@@ -302,6 +302,8 @@ def acquire_lock(lock_path):
             print("Stale lock found. Removing.")
             release_lock(lock_path)
     
+    # Create folder if it doesn't exist
+    os.makedirs(os.path.dirname(lock_path), exist_ok=True)
     with open(lock_path, 'w') as f:
         f.write(str(os.getpid()))
 
