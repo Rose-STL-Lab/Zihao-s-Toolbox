@@ -4,6 +4,7 @@ USER root
 
 # Install dependency (You may add other dependencies here)
 RUN apt update && apt install -y make rsync git vim
+RUN wget https://github.com/peak/s5cmd/releases/download/v2.2.2/s5cmd_2.2.2_linux_amd64.deb && dpkg -i s5cmd_2.2.2_linux_amd64.deb && rm s5cmd_2.2.2_linux_amd64.deb
 
 # Add ssh key
 RUN mkdir -p /root/.ssh
