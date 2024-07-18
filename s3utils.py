@@ -40,8 +40,12 @@ else:
 
 
 def run_s5cmd_and_log(s5cmd_command, log_file_path="download.log"):
-    tail = r' 2>&1 | awk \'BEGIN{RS=" "; ORS=""} {print $0 (/\\n/ ? "" : " "); if(tolower($0) ~ /%/) print "\\n"}\' | tee -a ' + log_file_path
-    
+    tail = (
+        r' 2>&1 | awk \'BEGIN{RS=" "; ORS=""} {print $0 (/\\n/ ? "" : " "); '
+        + r'if(tolower($0) ~ /%/) print "\\n"}\' | tee -a '
+        + log_file_path
+    )
+
     s5cmd_command = re.sub(
         r'(\s*(?:&&|&|;)\s*)', 
         tail + r'\1',
@@ -238,13 +242,6 @@ def list_s3_objects(s3_path):
         logger.info(f"File: {obj['Key']}")
         rtn.append(obj['Key'])
 
-    if s3_path.endswith('/'):
-        # If s3_path is a directory, list files and directories recursively
-        for d in directories:
-            sub_path = d['Prefix']
-            sub_rtn = list_s3_objects(sub_path)
-            rtn.extend(sub_rtn)
-
     return rtn
 
 
@@ -417,8 +414,8 @@ def interactive_list_and_action(s3_path, local_path):
         pass
     else:
         logger.error("Invalid action")
-        
-        
+
+
 def list_files(directory):
     """ List all non-hidden files recursively """
     for root, dirs, files in os.walk(directory):
@@ -475,7 +472,7 @@ def monitor(folder_path, interval, log_file="monitor.log"):
 
     finally:
         release_lock(lock_path)
-    
+
 
 class RequestHandler(SimpleHTTPRequestHandler):
     def do_POST(self):
@@ -509,14 +506,14 @@ class RequestHandler(SimpleHTTPRequestHandler):
         
         response = json.dumps({"message": response})
         self.wfile.write(response.encode('utf-8'))
-        
-        
+
+
 def run(server_class=HTTPServer, handler_class=RequestHandler, port=57575):
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
     print(f"Server started at localhost: {port}")
     httpd.serve_forever()
-    
+
 
 if __name__ == "__main__":
     import argparse

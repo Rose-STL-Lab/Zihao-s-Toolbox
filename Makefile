@@ -233,6 +233,7 @@ fd: find
 ## List s3 custom file or folder
 list:
 	$(if $(file),,$(eval file := '$(shell read -p "Please enter the relative path (support wildcards *): " filepath; echo "$$filepath")'))
+	$(eval file := $(if $(shell [ -z "$(file)" ] || [ "$(file)" == "." ]; echo true),/,$(file)))
 	@$(PYTHON) src/toolbox/s3utils.py --list $(file) --local_path $(local_path)
 ls: list
 
