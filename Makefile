@@ -227,6 +227,7 @@ else
 	@bash --rcfile <(echo '. src/toolbox/.bashrc; alias make="make --no-print-directory"; $(ACTIVATE); set -a; source .env; set +a;')
 endif
 overwrite ?= false
+local_path ?= .
 
 # Default target for prompting file input
 prompt_for_file:
@@ -234,16 +235,16 @@ prompt_for_file:
 
 ## Interactive mode with s3 file or folder
 interactive: prompt_for_file
-	@$(PYTHON) src/toolbox/s3utils.py --interactive $(file)
+	@$(PYTHON) src/toolbox/s3utils.py --interactive $(file) --local_path $(local_path)
 
 ## Find s3 custom file or folder
 find: prompt_for_file
-	@$(PYTHON) src/toolbox/s3utils.py --find $(file)
+	@$(PYTHON) src/toolbox/s3utils.py --find $(file) --local_path $(local_path)
 fd: find
 
 ## List s3 custom file or folder
 list: prompt_for_file
-	@$(PYTHON) src/toolbox/s3utils.py --list $(file)
+	@$(PYTHON) src/toolbox/s3utils.py --list $(file) --local_path $(local_path)
 ls: list
 
 ## Download custom file or folder
@@ -251,20 +252,20 @@ download: prompt_for_file
 ifeq ($(overwrite),true)
 	rm -rf $(file)
 endif
-	@$(PYTHON) src/toolbox/s3utils.py --download $(file)
+	@$(PYTHON) src/toolbox/s3utils.py --download $(file) --local_path $(local_path)
 down: download
 
 ## Upload custom file or folder
 upload: prompt_for_file
 ifeq ($(overwrite),true)
-	@$(PYTHON) src/toolbox/s3utils.py --remove $(file)
+	@$(PYTHON) src/toolbox/s3utils.py --remove $(file) --local_path $(local_path)
 endif
-	@$(PYTHON) src/toolbox/s3utils.py --upload $(file)
+	@$(PYTHON) src/toolbox/s3utils.py --upload $(file) --local_path $(local_path)
 up: upload
 
 ## Remove s3 custom file or folder
 remove: prompt_for_file
-	@$(PYTHON) src/toolbox/s3utils.py --remove $(file)
+	@$(PYTHON) src/toolbox/s3utils.py --remove $(file) --local_path $(local_path)
 rm: remove
 
 ## Monitor a checkpoint folder for continuous upload & remove
