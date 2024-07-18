@@ -5,6 +5,7 @@ endif
 
 .PHONY: all $(MAKECMDGOALS)
 .NOTPARALLEL: all $(MAKECMDGOALS)
+.EXPORT_ALL_VARIABLES:
 
 #################################################################################
 # GLOBALS                                                                       #
@@ -208,17 +209,6 @@ delete: kube delete_pod delete_job
 # S3 related                                                                    #
 #################################################################################
 
-# Define a function to call python script with the supplied command
-define s3_command
-	echo $(CONDA_ENV_ROOT)
-	python src/toolbox/s3utils.py --$(1) $(file)
-endef
-
-# Define a function to request file input if it's not set
-define request_file_input
-$(if $(file),,$(eval file := '$(shell read -p "Please enter the S3 path (support wildcards): " filepath; echo "$$filepath")'))
-endef
-
 bash ?= false
 shell:
 ifeq ($(bash)$(wildcard $(HOME)/.oh-my-zsh),false$(HOME)/.oh-my-zsh)
@@ -229,26 +219,26 @@ endif
 overwrite ?= false
 local_path ?= .
 
-# Default target for prompting file input
-prompt_for_file:
-	$(call request_file_input)
-
 ## Interactive mode with s3 file or folder
-interactive: prompt_for_file
+interactive:
+	$(if $(file),,$(eval file := '$(shell read -p "Please enter the relative path (support wildcards *): " filepath; echo "$$filepath")'))
 	@$(PYTHON) src/toolbox/s3utils.py --interactive $(file) --local_path $(local_path)
 
 ## Find s3 custom file or folder
-find: prompt_for_file
+find:
+	$(if $(file),,$(eval file := '$(shell read -p "Please enter the relative path (support wildcards *): " filepath; echo "$$filepath")'))
 	@$(PYTHON) src/toolbox/s3utils.py --find $(file) --local_path $(local_path)
 fd: find
 
 ## List s3 custom file or folder
-list: prompt_for_file
+list:
+	$(if $(file),,$(eval file := '$(shell read -p "Please enter the relative path (support wildcards *): " filepath; echo "$$filepath")'))
 	@$(PYTHON) src/toolbox/s3utils.py --list $(file) --local_path $(local_path)
 ls: list
 
 ## Download custom file or folder
-download: prompt_for_file
+download:
+	$(if $(file),,$(eval file := '$(shell read -p "Please enter the relative path (support wildcards *): " filepath; echo "$$filepath")'))
 ifeq ($(overwrite),true)
 	rm -rf $(file)
 endif
@@ -256,7 +246,8 @@ endif
 down: download
 
 ## Upload custom file or folder
-upload: prompt_for_file
+upload:
+	$(if $(file),,$(eval file := '$(shell read -p "Please enter the relative path (support wildcards *): " filepath; echo "$$filepath")'))
 ifeq ($(overwrite),true)
 	@$(PYTHON) src/toolbox/s3utils.py --remove $(file) --local_path $(local_path)
 endif
@@ -264,12 +255,14 @@ endif
 up: upload
 
 ## Remove s3 custom file or folder
-remove: prompt_for_file
+remove:
+	$(if $(file),,$(eval file := '$(shell read -p "Please enter the relative path (support wildcards *): " filepath; echo "$$filepath")'))
 	@$(PYTHON) src/toolbox/s3utils.py --remove $(file) --local_path $(local_path)
 rm: remove
 
 ## Monitor a checkpoint folder for continuous upload & remove
-monitor: prompt_for_file
+monitor:
+	$(if $(file),,$(eval file := '$(shell read -p "Please enter the relative path (support wildcards * *): " filepath; echo "$$filepath")'))
 	@$(PYTHON) src/toolbox/s3utils.py --monitor $(file)
 mn: monitor
 
