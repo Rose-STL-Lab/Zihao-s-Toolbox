@@ -801,6 +801,8 @@ def batch(
                 else:
                     hash_object = hashlib.sha256(
                         json.dumps(hparam_dict).encode())
+                    if len(name) + 5 + len(hash_object.hexdigest()[:5]) > 63:
+                        name = name[:63 - 5 - len(hash_object.hexdigest()[:5])].lower()
                     name += '-' + hash_object.hexdigest()[:5]
 
                     if "hparam" in run_configs and "hparam" in config:
