@@ -5,7 +5,7 @@ import itertools
 import subprocess
 import json
 from copy import deepcopy
-from typing import List
+from typing import List, Dict, Any
 import os
 import base64
 import sys
@@ -19,6 +19,14 @@ with open("config/kube.yaml", "r") as f:
     settings = yaml.safe_load(f)
 
 logger = CustomLogger()
+
+
+def get_leading_int(string):
+    match = re.match(r'^(\d+)', string)
+    if match:
+        return int(match.group(1))
+    else:
+        return None
 
 
 def markdown_link_handler(command, return_type):
@@ -277,6 +285,9 @@ def create_config(
 
     # Files to map
     file: List[str] = [],
+    
+    # Extra background server for the command
+    server: Dict[str, Any] = {},
 
     # Omit undefined kwargs
     **ignored
@@ -427,61 +438,120 @@ fi
     }
     command = re.sub(r'##(.*?)##', '', command)
     command = markdown_link_handler(command, 2).strip()
+    
+    gpu_container = {
+        "name": "gpu-container",
+        "image": image,
+        "command": [
+            "conda",
+            "run",
+            "-n",
+            conda_env_name,
+            "/bin/bash",
+            "-c",
+            ((load_startup_script + server_command)
+                if interactive else (load_startup_script + command)).replace("\n", " ").strip()
+        ],
+        "resources": {
+            "limits": {
+                **(
+                    {"nvidia.com/gpu": str(gpu_count)} 
+                    if special_gpu is None 
+                    else {f"nvidia.com/{special_gpu}": str(gpu_count)}
+                ),
+                "memory": f"{int(memory * 1.2)}G",
+                "cpu": str(int(cpu_count * 1.2)),
+                **({"ephemeral-storage": f"{ephermal_storage}G"} if ephermal_storage != 0 else {})
+            },
+            "requests": {
+                **(
+                    {"nvidia.com/gpu": str(gpu_count)} 
+                    if special_gpu is None 
+                    else {f"nvidia.com/{special_gpu}": str(gpu_count)}
+                ),
+                "memory": f"{memory}G",
+                "cpu": str(cpu_count),
+                **({"ephemeral-storage": f"{ephermal_storage}G"} if ephermal_storage != 0 else {})
+            }
+        },
+        "volumeMounts": [
+            {"mountPath": "/dev/shm", "name": "dshm"},
+        ] + ([
+            {"mountPath": volumes[volume], "name": volume}
+            for volume in volumes]),
+        "env": [
+            {"name": "PYTHONUNBUFFERED", "value": "1"},
+            {"name": "PYTHONIOENCODING", "value": "UTF-8"},
+            {
+                "name": "NODE_NAME",
+                "valueFrom": {
+                    "fieldRef": {"fieldPath": "spec.nodeName"}
+                }
+            },
+            *env
+        ]
+    }
+    
+    # Extra server container
+    base_volumes = [
+        {
+            "name": "dshm",
+            "emptyDir": {"medium": "Memory"}
+        }
+    ]
+    server_containers = []
+    if server is not None:
+        for server_name, server_config in server.items():
+            server_name = normalize(server_name)
+            server_container = deepcopy(gpu_container)
+            server_container["command"] = [
+                "conda",
+                "run",
+                "-n",
+                conda_env_name,
+                "/bin/bash",
+                "-c",
+                (load_startup_script + server_config['command']).replace("\n", " ").strip()
+            ]
+            server_container["name"] = server_name
+            memory = server_config.get("memory", 32)
+            cpu_count = server_config.get("cpu_count", 5)
+            gpu_count = server_config.get("gpu_count", 0)
+            ephermal_storage = server_config.get("ephemeral_storage", 100)
+            server_container["resources"]["limits"] = {
+                "memory": f"{int(memory * 1.2)}G",
+                "cpu": str(int(cpu_count * 1.2)),
+                "nvidia.com/gpu": str(gpu_count),
+                **({"ephemeral-storage": f"{ephermal_storage}G"} if ephermal_storage != 0 else {})
+            }
+            server_container["resources"]["requests"] = {
+                "memory": f"{memory}G",
+                "cpu": str(cpu_count),
+                "nvidia.com/gpu": str(gpu_count),
+                **({"ephemeral-storage": f"{ephermal_storage}G"} if ephermal_storage != 0 else {})
+            }
+            server_container["ports"] = [
+                {"containerPort": int(server_config["port"]), "name": server_name}
+            ]
+            for volume_name, volume_path in server_config.get("volumes", {}).items():
+                server_container["volumeMounts"].append(
+                    {"mountPath": volume_path, "name": volume_name}
+                )
+                gpu_container["volumeMounts"].append(
+                    {"mountPath": volume_path, "name": volume_name}
+                )
+                base_volumes.append(
+                    {
+                        "name": volume_name,
+                        "emptyDir": {}
+                    }
+                )
+            server_containers.append(server_container)
 
     template = {
         "containers": [
-            {
-                "name": "gpu-container",
-                "image": image,
-                "command": [
-                    "conda",
-                    "run",
-                    "-n",
-                    conda_env_name,
-                    "/bin/bash",
-                    "-c",
-                    ((load_startup_script + server_command)
-                     if interactive else (load_startup_script + command)).replace("\n", " ").strip()
-                ],
-                "resources": {
-                    "limits": {
-                        **(
-                            {"nvidia.com/gpu": str(gpu_count)} 
-                            if special_gpu is None 
-                            else {f"nvidia.com/{special_gpu}": str(gpu_count)}
-                        ),
-                        "memory": f"{int(memory * 1.2)}G",
-                        "cpu": str(int(cpu_count * 1.2)),
-                        **({"ephemeral-storage": f"{ephermal_storage}G"} if ephermal_storage != 0 else {})
-                    },
-                    "requests": {
-                        **(
-                            {"nvidia.com/gpu": str(gpu_count)} 
-                            if special_gpu is None 
-                            else {f"nvidia.com/{special_gpu}": str(gpu_count)}
-                        ),
-                        "memory": f"{memory}G",
-                        "cpu": str(cpu_count),
-                        **({"ephemeral-storage": f"{ephermal_storage}G"} if ephermal_storage != 0 else {})
-                    }
-                },
-                "volumeMounts": [
-                    {"mountPath": "/dev/shm", "name": "dshm"},
-                ] + ([
-                    {"mountPath": volumes[volume], "name": volume}
-                    for volume in volumes]),
-                "env": [
-                    {"name": "PYTHONUNBUFFERED", "value": "1"},
-                    {"name": "PYTHONIOENCODING", "value": "UTF-8"},
-                    {
-                        "name": "NODE_NAME",
-                        "valueFrom": {
-                            "fieldRef": {"fieldPath": "spec.nodeName"}
-                        }
-                    },
-                    *env
-                ]
-            }
+            gpu_container,
+            *server_containers
         ],
         "imagePullSecrets": [
             {
@@ -526,17 +596,13 @@ fi
                 "effect": "NoSchedule"
             }
             for key in tolerations],
-        "volumes": [
-            {
-                "name": "dshm",
-                "emptyDir": {"medium": "Memory"}
-            }
-        ] + [
+        "volumes": base_volumes + [
             {
                 "name": volume,
                 "persistentVolumeClaim": {"claimName": volume}
             }
-            for volume in volumes]
+            for volume in volumes
+        ]
     }
 
     # If affinity is empty
@@ -555,16 +621,29 @@ fi
         del template["affinity"]
 
     if interactive:
-        container = template["containers"][0]
-        for entry in ["limits", "requests"]:
-            for key in container["resources"][entry]:
-                if key.startswith("nvidia.com/") and int(container["resources"][entry][key]) > 2:
-                    container["resources"][entry][key] = "2"
-                    break
-            if "memory" in container["resources"][entry] and int(container["resources"][entry]["memory"][:-1]) > 32:
-                container["resources"][entry]["memory"] = "32G"
-            if "cpu" in container["resources"][entry] and int(container["resources"][entry]["cpu"]) > 16:
-                container["resources"][entry]["cpu"] = "16"
+        gpu_limit = 2
+        memory_limit = 32
+        cpu_limit = 16
+        # Suppress resource to be under the total limit
+        total_gpu = sum(int(container["resources"]["limits"].get("nvidia.com/gpu", 0)) for container in template["containers"])
+        total_memory = sum(int(get_leading_int(container["resources"]["limits"].get("memory", "0Gi"))) for container in template["containers"])
+        total_cpu = sum(float(container["resources"]["limits"].get("cpu", 0)) for container in template["containers"])
+
+        if total_gpu > gpu_limit or total_memory > memory_limit or total_cpu > cpu_limit:
+            gpu_ratio = gpu_limit / total_gpu if total_gpu > gpu_limit else 1
+            memory_ratio = memory_limit / total_memory if total_memory > memory_limit else 1
+            cpu_ratio = cpu_limit / total_cpu if total_cpu > cpu_limit else 1
+
+            for container in template["containers"]:
+                for entry in ["limits", "requests"]:
+                    if "nvidia.com/gpu" in container["resources"][entry]:
+                        container["resources"][entry]["nvidia.com/gpu"] = str(int(int(container["resources"][entry]["nvidia.com/gpu"]) * gpu_ratio))
+                    if "memory" in container["resources"][entry]:
+                        memory = int(get_leading_int(container["resources"][entry]["memory"]))
+                        container["resources"][entry]["memory"] = f"{int(memory * memory_ratio)}Gi"
+                    if "cpu" in container["resources"][entry]:
+                        container["resources"][entry]["cpu"] = str(float(container["resources"][entry]["cpu"]) * cpu_ratio)
+
         config = {
             "apiVersion": "v1",
             "kind": "Pod",

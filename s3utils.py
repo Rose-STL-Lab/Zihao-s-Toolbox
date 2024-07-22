@@ -494,11 +494,11 @@ class RequestHandler(SimpleHTTPRequestHandler):
             response = upload_s3_path(path)
         elif command == 'remove':
             response = remove_s3_path(path)
+        elif command == 'shutdown':
+            response = "Shutting down the server..."
+            os._exit(0)
         else:
             response = "Invalid command"
-
-        # Simulate a delay
-        time.sleep(3)
 
         # Send response
         self.send_response(200)
