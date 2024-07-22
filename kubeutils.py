@@ -18,8 +18,50 @@ from .utils import CustomLogger
 with open("config/kube.yaml", "r") as f:
     settings = yaml.safe_load(f)
 
-server_only_pattern = r'\[([^\]]*)\]\(([^()]*(?:\([^()]*\)[^()]*)*[^()]*)\)'
 logger = CustomLogger()
+
+
+def markdown_link_handler(command, return_type):
+    result = ""
+    i = 0
+    while i < len(command):
+        if command[i] == '[':
+            j = i + 1
+            bracket_count = 1
+            while j < len(command):
+                if command[j] == '[':
+                    bracket_count += 1
+                elif command[j] == ']':
+                    bracket_count -= 1
+                    if bracket_count == 0:
+                        break
+                j += 1
+            if j + 1 < len(command) and command[j + 1] == '(':
+                k = j + 2
+                paren_count = 1
+                while k < len(command):
+                    if command[k] == '(':
+                        paren_count += 1
+                    elif command[k] == ')':
+                        paren_count -= 1
+                        if paren_count == 0:
+                            if return_type == 2:
+                                result += command[j + 2:k]
+                            else:
+                                result += command[i + 1:j]
+                            i = k + 1
+                            break
+                    k += 1
+                else:
+                    result += command[i:j + 1]
+                    i = j + 1
+            else:
+                result += command[i:j + 1]
+                i = j + 1
+        else:
+            result += command[i]
+            i += 1
+    return result
 
 
 def is_number(s):
@@ -384,7 +426,7 @@ fi
         "labels": {"user": user, "project": project_name}
     }
     command = re.sub(r'##(.*?)##', '', command)
-    command = re.sub(server_only_pattern, r'\2', command)
+    command = markdown_link_handler(command, 2).strip()
 
     template = {
         "containers": [
@@ -715,9 +757,9 @@ def batch(
                             0][0]['_']
                         if "NODE_NAME" in os.environ:
                             # make local inside the node
-                            cmd = re.sub(server_only_pattern, r'\2', cmd).strip()
+                            cmd = markdown_link_handler(cmd, 2).strip()
                         else:
-                            cmd = re.sub(server_only_pattern, r'\1', cmd).strip()
+                            cmd = markdown_link_handler(cmd, 1).strip()
                         
                         system_type = platform.system()
                         if system_type == 'Linux':

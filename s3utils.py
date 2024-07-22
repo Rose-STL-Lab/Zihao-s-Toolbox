@@ -41,8 +41,7 @@ else:
 
 def run_s5cmd_and_log(s5cmd_command, log_file_path="download.log"):
     tail = (
-        r' 2>&1 | awk \'BEGIN{RS=" "; ORS=""} {print $0 (/\\n/ ? "" : " "); '
-        + r'if(tolower($0) ~ /%/) print "\\n"}\' | tee -a '
+        r"""2>&1 | awk 'BEGIN{RS=" "; ORS=""} {print $0 (/\\n/ ? "" : " "); if(tolower($0) ~ /%/) print "\\n"}' | tee -a """
         + log_file_path
     )
 
@@ -51,10 +50,12 @@ def run_s5cmd_and_log(s5cmd_command, log_file_path="download.log"):
         tail + r'\1',
         s5cmd_command
     ) + tail
+    logger.debug(s5cmd_command)
     os.system(s5cmd_command)
 
 
 def run_s5cmd_interactive(s5cmd_command):
+    logger.debug(s5cmd_command)
     os.system(s5cmd_command)
 
 
@@ -510,9 +511,30 @@ class RequestHandler(SimpleHTTPRequestHandler):
 
 def run(server_class=HTTPServer, handler_class=RequestHandler, port=57575):
     server_address = ('', port)
-    httpd = server_class(server_address, handler_class)
-    print(f"Server started at localhost: {port}")
-    httpd.serve_forever()
+    try:
+        httpd = server_class(server_address, handler_class)
+        logger.info(f"Server started at localhost: {port}")
+        httpd.serve_forever()
+    except OSError as e:
+        if e.errno == 98:
+            logger.error(f"Port {port} is already in use. Probably the server is already running?")
+    
+
+def send_request(command, path, port=57575):
+    import requests
+    # Assert relative path
+    if type(path) is str:
+        path = Path(path)
+    path = path.resolve().relative_to(Path.cwd())
+        
+    logger.info(f"Uploading {path} to S3...")
+    url = f'http://localhost:{port}'
+    headers = {'Content-type': 'application/json'}
+    payload = {'command': command, 'path': str(path)}
+
+    # Sending POST request
+    response = requests.post(url, headers=headers, json=payload)
+    return response.json()
 
 
 if __name__ == "__main__":
