@@ -18,7 +18,7 @@ from .utils import CustomLogger
 with open("config/kube.yaml", "r") as f:
     settings = yaml.safe_load(f)
 
-server_only_pattern = r'\[([^\]]*)\]|\(([^()]*(?:\([^()]*\)[^()]*)*[^()]*)\)'
+server_only_pattern = r'\[([^\]]*)\]\(([^()]*(?:\([^()]*\)[^()]*)*[^()]*)\)'
 logger = CustomLogger()
 
 
