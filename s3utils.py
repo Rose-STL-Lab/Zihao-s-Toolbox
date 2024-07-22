@@ -132,9 +132,12 @@ def get_s3_objects(s3_path, api_call=False):
     """
     Recursively get all objects in S3 bucket that match the s3_path pattern.
     """
-    if api_call and api_server_online():
-        logger.debug(f"API server is online. Sending request to find {s3_path}...")
-        return send_request("find", s3_path)
+    if api_call:
+        if api_server_online():
+            logger.debug(f"API server is online. Sending request to find {s3_path}...")
+            return send_request("find", s3_path)['message']
+        else:
+            logger.debug("API server is not online. Falling back to local implementation.")
     
     wildcard_index = s3_path.find('*')
     if wildcard_index == -1:
@@ -199,9 +202,12 @@ def download_s3_path(s3_path, local_path='./', api_call=False):
     """
     Download all files in the S3 path to the local file system.
     """
-    if api_call and api_server_online():
-        logger.debug(f"API server is online. Sending request to download {s3_path}...")
-        return send_request("download", s3_path)
+    if api_call:
+        if api_server_online():
+            logger.debug(f"API server is online. Sending request to download {s3_path}...")
+            return send_request("download", s3_path)['message']
+        else:
+            logger.debug("API server is not online. Falling back to local implementation.")
     
     # Remove the trailing '*' 
     s3_path = s3_path.rstrip('*')
@@ -249,9 +255,12 @@ def list_s3_objects(s3_path, api_call=False):
     """
     List all directories / files in S3 bucket under the given path.
     """
-    if api_call and api_server_online():
-        logger.debug(f"API server is online. Sending request to list {s3_path}...")
-        return send_request("list", s3_path)
+    if api_call:
+        if api_server_online():
+            logger.debug(f"API server is online. Sending request to list {s3_path}...")
+            return send_request("list", s3_path)['message']
+        else:
+            logger.debug("API server is not online. Falling back to local implementation.")
     
     if s3_path.startswith('./'):
         s3_path = s3_path[2:]
@@ -325,9 +334,12 @@ def remove_s3_path(s3_path, api_call=False):
     """
     Remove all files in the S3 path.
     """
-    if api_call and api_server_online():
-        logger.debug(f"API server is online. Sending request to remove {s3_path}...")
-        return send_request("remove", s3_path)
+    if api_call:
+        if api_server_online():
+            logger.debug(f"API server is online. Sending request to remove {s3_path}...")
+            return send_request("remove", s3_path)['message']
+        else:
+            logger.debug("API server is not online. Falling back to local implementation.")
     
     s3_path = os.path.normpath(s3_path)
     s3_objects = get_s3_objects(s3_path)
@@ -373,9 +385,12 @@ def upload_s3_path(s3_path, local_path='./', api_call=False):
     """
     Upload all files in the local path to the S3 path.
     """
-    if api_call and api_server_online():
-        logger.debug(f"API server is online. Sending request to upload {s3_path}...")
-        return send_request("upload", s3_path)
+    if api_call:
+        if api_server_online():
+            logger.debug(f"API server is online. Sending request to upload {s3_path}...")
+            return send_request("upload", s3_path)['message']
+        else:
+            logger.debug("API server is not online. Falling back to local implementation.")
     
     # Remove the trailing '*' 
     s3_path = s3_path.rstrip('*')
@@ -561,6 +576,10 @@ def run(server_class=HTTPServer, handler_class=RequestHandler, port=API_SERVER_P
     except OSError as e:
         if e.errno == 98:
             logger.error(f"Port {port} is already in use. Probably the server is already running?")
+            
+            
+def shutdown_server():
+    send_request("shutdown", "")
     
 
 if __name__ == "__main__":
@@ -583,13 +602,20 @@ if __name__ == "__main__":
     parser.add_argument("--server", help="Run as a S3 API server", action="store_true")
     parser.add_argument("--port", type=int, default=API_SERVER_PORT, help="Port for the HTTP server")
     parser.add_argument("--interval", type=int, default=5, help="Polling interval in seconds.")
+    parser.add_argument("--api", type=str, help="Use the API server for S3 operations", default="false")
     parser.add_argument("path", help="The S3 or local path pattern", type=str, nargs='?')
 
     args = parser.parse_args()
 
     s3_path = args.path
     local_path = args.local_path
+    rtn = None
     
+    # If true
+    if args.api == "true" or args.api == "True":
+        args.api = True
+    else:
+        args.api = False
     if not args.server and not args.path:
         parser.error("the following arguments are required: path")
     if args.server:
@@ -605,17 +631,20 @@ if __name__ == "__main__":
             for obj in s3_objects:
                 logger.info(obj)
     elif args.list:
-        list_s3_objects(s3_path)
+        rtn = list_s3_objects(s3_path)
     elif args.download:
-        download_s3_path(s3_path, local_path, api_call=True)
+        rtn = download_s3_path(s3_path, local_path, api_call=args.api)
     elif args.upload:
-        upload_s3_path(s3_path, local_path, api_call=True)
+        rtn = upload_s3_path(s3_path, local_path, api_call=args.api)
     elif args.remove:
-        remove_s3_path(s3_path)
+        rtn = remove_s3_path(s3_path, api_call=args.api)
     elif args.delete:
         local_files = get_local_files(s3_path, local_path)
-        delete_local_files(local_files)
+        rtn = delete_local_files(local_files)
     elif args.interactive:
-        interactive_list_and_action(s3_path, local_path)
+        rtn = interactive_list_and_action(s3_path, local_path)
     else:
         parser.print_help()
+
+    if rtn:
+        logger.info(rtn)

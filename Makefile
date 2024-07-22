@@ -218,6 +218,7 @@ else
 endif
 overwrite ?= false
 local_path ?= .
+api ?= false
 
 ## Interactive mode with s3 file or folder
 interactive:
@@ -243,22 +244,22 @@ download:
 ifeq ($(overwrite),true)
 	rm -rf $(file)
 endif
-	@$(PYTHON) src/toolbox/s3utils.py --download $(file) --local_path $(local_path)
+	@$(PYTHON) src/toolbox/s3utils.py --download $(file) --local_path $(local_path) --api $(api)
 down: download
 
 ## Upload custom file or folder
 upload:
 	$(if $(file),,$(eval file := '$(shell read -p "Please enter the relative path (support wildcards *): " filepath; echo "$$filepath")'))
 ifeq ($(overwrite),true)
-	@$(PYTHON) src/toolbox/s3utils.py --remove $(file) --local_path $(local_path)
+	@$(PYTHON) src/toolbox/s3utils.py --remove $(file) --local_path $(local_path) --api $(api)
 endif
-	@$(PYTHON) src/toolbox/s3utils.py --upload $(file) --local_path $(local_path)
+	@$(PYTHON) src/toolbox/s3utils.py --upload $(file) --local_path $(local_path) --api $(api)
 up: upload
 
 ## Remove s3 custom file or folder
 remove:
 	$(if $(file),,$(eval file := '$(shell read -p "Please enter the relative path (support wildcards *): " filepath; echo "$$filepath")'))
-	@$(PYTHON) src/toolbox/s3utils.py --remove $(file) --local_path $(local_path)
+	@$(PYTHON) src/toolbox/s3utils.py --remove $(file) --local_path $(local_path) --api $(api)
 rm: remove
 
 ## Monitor a checkpoint folder for continuous upload & remove
