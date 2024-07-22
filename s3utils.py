@@ -41,7 +41,7 @@ else:
 
 def run_s5cmd_and_log(s5cmd_command, log_file_path="download.log"):
     tail = (
-        r"""2>&1 | awk 'BEGIN{RS=" "; ORS=""} {print $0 (/\\n/ ? "" : " "); if(tolower($0) ~ /%/) print "\\n"}' | tee -a """
+        r""" 2>&1 | awk 'BEGIN{RS=" "; ORS=""} {print $0 (/\\n/ ? "" : " "); if(tolower($0) ~ /%/) print "\\n"}' | tee -a """
         + log_file_path
     )
 
