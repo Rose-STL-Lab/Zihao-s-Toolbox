@@ -267,6 +267,11 @@ monitor:
 	@$(PYTHON) src/toolbox/s3utils.py --monitor $(file)
 mn: monitor
 
+## Run a separate API server for s3 operations
+server:
+	@$(PYTHON) src/toolbox/s3utils.py --server
+sv: server
+
 #################################################################################
 # Environment related                                                           #
 #################################################################################

@@ -81,6 +81,8 @@ def is_number(s):
 
 
 def normalize(s):
+    if type(s) is not str:
+        s = str(s)
     return s.replace('_', '-').replace(' ', '-').replace('/', '-')
 
 

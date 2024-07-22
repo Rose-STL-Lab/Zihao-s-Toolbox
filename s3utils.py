@@ -14,10 +14,13 @@ import json
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 from pathlib import Path
 import re
+import socket
+import requests
 
 
 S3_ENDPOINT_URL = os.getenv('S3_ENDPOINT_URL')
 S3_BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
+API_SERVER_PORT = 57575
 if not S3_ENDPOINT_URL or not S3_BUCKET_NAME:
     raise EnvironmentError("Please set the S3_ENDPOINT_URL and S3_BUCKET_NAME environment variables.")
 logger = CustomLogger()
@@ -28,6 +31,26 @@ def use_s5cmd():
     Check if s5cmd is available.
     """
     return shutil.which('s5cmd')
+
+
+def api_server_online(port=API_SERVER_PORT):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(('localhost', port)) == 0
+    
+
+def send_request(command, path, port=API_SERVER_PORT):
+    # Assert relative path
+    if type(path) is str:
+        path = Path(path)
+    path = path.resolve().relative_to(Path.cwd())
+        
+    url = f'http://localhost:{port}'
+    headers = {'Content-type': 'application/json'}
+    payload = {'command': command, 'path': str(path)}
+
+    # Sending POST request
+    response = requests.post(url, headers=headers, json=payload)
+    return response.json()
 
 
 # Check if credentials are provided
@@ -105,10 +128,14 @@ def get_local_files(s3_path, local_path):
     return filtered_local_files
 
 
-def get_s3_objects(s3_path):
+def get_s3_objects(s3_path, api_call=False):
     """
     Recursively get all objects in S3 bucket that match the s3_path pattern.
     """
+    if api_call and api_server_online():
+        logger.debug(f"API server is online. Sending request to find {s3_path}...")
+        return send_request("find", s3_path)
+    
     wildcard_index = s3_path.find('*')
     if wildcard_index == -1:
         prefix = s3_path
@@ -168,10 +195,14 @@ def download_s3_objects(s3_objects, local_path='./'):
     return rtn
 
 
-def download_s3_path(s3_path, local_path='./'):
+def download_s3_path(s3_path, local_path='./', api_call=False):
     """
     Download all files in the S3 path to the local file system.
     """
+    if api_call and api_server_online():
+        logger.debug(f"API server is online. Sending request to download {s3_path}...")
+        return send_request("download", s3_path)
+    
     # Remove the trailing '*' 
     s3_path = s3_path.rstrip('*')
     s3_path = os.path.normpath(s3_path)
@@ -214,10 +245,14 @@ def download_s3_path(s3_path, local_path='./'):
         return download_s3_objects(s3_objects, local_path)
 
 
-def list_s3_objects(s3_path):
+def list_s3_objects(s3_path, api_call=False):
     """
     List all directories / files in S3 bucket under the given path.
     """
+    if api_call and api_server_online():
+        logger.debug(f"API server is online. Sending request to list {s3_path}...")
+        return send_request("list", s3_path)
+    
     if s3_path.startswith('./'):
         s3_path = s3_path[2:]
     prefix = s3_path.lstrip('/')
@@ -286,10 +321,14 @@ def remove_s3_objects(objects_to_delete):
     return rtn
 
 
-def remove_s3_path(s3_path):
+def remove_s3_path(s3_path, api_call=False):
     """
     Remove all files in the S3 path.
     """
+    if api_call and api_server_online():
+        logger.debug(f"API server is online. Sending request to remove {s3_path}...")
+        return send_request("remove", s3_path)
+    
     s3_path = os.path.normpath(s3_path)
     s3_objects = get_s3_objects(s3_path)
     return remove_s3_objects(s3_objects)
@@ -330,10 +369,14 @@ def upload_s3_objects(local_files, local_path='./'):
     return rtn
 
 
-def upload_s3_path(s3_path, local_path='./'):
+def upload_s3_path(s3_path, local_path='./', api_call=False):
     """
     Upload all files in the local path to the S3 path.
     """
+    if api_call and api_server_online():
+        logger.debug(f"API server is online. Sending request to upload {s3_path}...")
+        return send_request("upload", s3_path)
+    
     # Remove the trailing '*' 
     s3_path = s3_path.rstrip('*')
     s3_path = os.path.normpath(s3_path)
@@ -509,7 +552,7 @@ class RequestHandler(SimpleHTTPRequestHandler):
         self.wfile.write(response.encode('utf-8'))
 
 
-def run(server_class=HTTPServer, handler_class=RequestHandler, port=57575):
+def run(server_class=HTTPServer, handler_class=RequestHandler, port=API_SERVER_PORT):
     server_address = ('', port)
     try:
         httpd = server_class(server_address, handler_class)
@@ -519,23 +562,6 @@ def run(server_class=HTTPServer, handler_class=RequestHandler, port=57575):
         if e.errno == 98:
             logger.error(f"Port {port} is already in use. Probably the server is already running?")
     
-
-def send_request(command, path, port=57575):
-    import requests
-    # Assert relative path
-    if type(path) is str:
-        path = Path(path)
-    path = path.resolve().relative_to(Path.cwd())
-        
-    logger.info(f"Uploading {path} to S3...")
-    url = f'http://localhost:{port}'
-    headers = {'Content-type': 'application/json'}
-    payload = {'command': command, 'path': str(path)}
-
-    # Sending POST request
-    response = requests.post(url, headers=headers, json=payload)
-    return response.json()
-
 
 if __name__ == "__main__":
     import argparse
@@ -555,7 +581,7 @@ if __name__ == "__main__":
     parser.add_argument("--local_path", help="Local path", type=str, default="./")
     parser.add_argument("--monitor", help="Monitor local path for changes", action="store_true")
     parser.add_argument("--server", help="Run as a S3 API server", action="store_true")
-    parser.add_argument("--port", type=int, default=57575, help="Port for the HTTP server")
+    parser.add_argument("--port", type=int, default=API_SERVER_PORT, help="Port for the HTTP server")
     parser.add_argument("--interval", type=int, default=5, help="Polling interval in seconds.")
     parser.add_argument("path", help="The S3 or local path pattern", type=str, nargs='?')
 
@@ -581,9 +607,9 @@ if __name__ == "__main__":
     elif args.list:
         list_s3_objects(s3_path)
     elif args.download:
-        download_s3_path(s3_path, local_path)
+        download_s3_path(s3_path, local_path, api_call=True)
     elif args.upload:
-        upload_s3_path(s3_path, local_path)
+        upload_s3_path(s3_path, local_path, api_call=True)
     elif args.remove:
         remove_s3_path(s3_path)
     elif args.delete:
