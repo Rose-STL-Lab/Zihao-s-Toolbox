@@ -945,12 +945,9 @@ def batch(
                         yaml.dump(config, f, indent=2, width=float("inf"))
                     
                     # For two jobs to share the same node, they must have same
-                    # GPU count, CPU count, ephermeral storage, memory, volume, affinity, prefix, and tolerations
+                    # GPU count, ephermeral storage, volume, affinity, prefix, and tolerations
                     shared_metrics = [
                         "gpu_count",
-                        "cpu_count",
-                        "ephermal_storage",
-                        "memory",
                         "volumes",
                         "special_gpu",
                         "gpu_whitelist",
@@ -997,14 +994,21 @@ def batch(
                 to_merge.append((name, config))
                 total += shared
                 
+                # Last config or total shared GPU is going to exceed 1.0
                 if not configs or total + configs[-1]['shared'] > 1.0:
                     # Merged config
                     prefix = (prefix + '-') if prefix != '' else ''
                     merge_name = f"{prefix}{project_name}-shared"
                     log = "Jobs "
                     
-                    # Tmux is required to run multiple commands in a single container
-                    merge_cmd = "sudo apt-get update && sudo apt install tmux -y && "
+                    # Parallel is required to run multiple commands in a single container
+                    merge_cmd = ""
+                    total_cpu_limit = 0
+                    total_cpu_request = 0
+                    total_memory_limit = 0
+                    total_memory_request = 0
+                    total_storage_limit = 0
+                    total_storage_request = 0
                     
                     for i, (name, config) in enumerate(to_merge):
                         merge_name += "-" + name[-5:]
@@ -1017,21 +1021,39 @@ def batch(
                         
                         # Escape double quotes in the command
                         cmd = cmd.replace('"', '\\\"')
-                        tmux_cmd = f"sleep 5 && tmux new-session -d -s {name} \"{cmd} 2>&1 | tee {name}.txt\" >> tmux.txt"
                         if i == 0:
-                            merge_cmd += startup_cmd + tmux_cmd
-                        else:
-                            merge_cmd += f" && {tmux_cmd}"
-                    
-                    # Poll for all tmux sessions to finish
-                    merge_cmd += """ && while true; do TMUX_SESSIONS=$(tmux list-sessions 2>&1); [[ "$TMUX_SESSIONS" == *"no server running"* ]] && echo "No tmux server running, all sessions are closed." && break; echo "Waiting for all TMUX sessions to finish..."; sleep 10; done"""  # noqa
-                    # Print the logs of all tmux sessions
-                    merge_cmd += " && cat tmux.txt"
-                    for name, _ in to_merge:
-                        merge_cmd += " && cat " + name + ".txt"
+                            merge_cmd += startup_cmd + f" parallel --line-buffer --jobs {len(to_merge)} --tag :::"
+                        merge_cmd += f" \"{cmd}\" "
+                        
+                        total_cpu_limit += int(get_leading_int(
+                            config["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"]["cpu"]
+                        ))
+                        total_cpu_request += int(get_leading_int(
+                            config["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"]["cpu"]
+                        ))
+                        total_memory_limit += int(get_leading_int(
+                            config["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"]["memory"]
+                        ))
+                        total_memory_request += int(get_leading_int(
+                            config["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"]["memory"]
+                        ))
+                        total_storage_limit += int(get_leading_int(
+                            config["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"]["ephemeral-storage"]
+                        ))
+                        total_storage_request += int(get_leading_int(
+                            config["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"]["ephemeral-storage"]
+                        ))
                         
                     config["metadata"]["name"] = merge_name
                     config["spec"]["template"]["spec"]["containers"][0]["command"][-1] = merge_cmd
+                    
+                    config["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"]["cpu"] = str(total_cpu_limit)
+                    config["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"]["cpu"] = str(total_cpu_request)
+                    config["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"]["memory"] = f"{total_memory_limit}Gi"
+                    config["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"]["memory"] = f"{total_memory_request}Gi"
+                    config["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"]["ephemeral-storage"] = f"{total_storage_limit}Gi"
+                    config["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"]["ephemeral-storage"] = f"{total_storage_request}Gi"
+                    
                     to_merge = []
                     total = 0
                     
