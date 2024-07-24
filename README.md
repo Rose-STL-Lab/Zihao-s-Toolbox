@@ -297,6 +297,7 @@ env:
 
 ## If startup_script is not explicitly specified, the script will automatically pull the latest git repo using ssh_host and ssh_port, and activate the default environment using conda_home and conda_env_name.
 startup_script: str, default to pull the latest git repo and submodules, activate the default conda environment, switch external S3 to internal S3 endpoint
+extra_startup_script: str, default to empty, if you want to run the default script and add a few lines of additional commands
 conda_home: str, default to /opt/conda
 ssh_host:   str, default to gitlab-ssh.nrp-nautilus.io 
 ssh_port:   int, default to 30622

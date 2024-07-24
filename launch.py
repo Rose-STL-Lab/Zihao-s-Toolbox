@@ -282,7 +282,7 @@ if __name__ == '__main__':
                 if os.system(command_to_run) != 0:  # os.system returns 0 if successful
                     logger.error(f"Failed to copy files to pod {pod_name}.")
                 else:
-                    logger.info(f"Files copied successfully to {pod_name}.")
+                    logger.info(f"Files copied successfully to {pod_name}: {launch_settings['file']}")
                     exit(0)
             else:
                 raise ValueError("Cannot copy files without a pod.")

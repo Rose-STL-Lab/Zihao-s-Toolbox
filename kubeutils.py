@@ -263,6 +263,7 @@ def create_config(
     interactive: bool = False,
     server_command: str = "sleep infinity",
     startup_script: str = None,
+    extra_startup_script: str = None,
     registry_host: str = None,
     ssh_host: str = None,
     ssh_port: int = None,
@@ -386,6 +387,10 @@ if [ -f src/toolbox/s3region.sh ]; then
 fi
 """
             )
+            if extra_startup_script is not None:
+                startup_script += extra_startup_script
+                if not extra_startup_script.endswith("\n"):
+                    startup_script += "\n"
     if file is not None:
         if '.env' not in file:
             file.append('.env')
