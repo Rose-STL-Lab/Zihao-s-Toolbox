@@ -890,6 +890,13 @@ def batch(
                     if "memory" in hparam_dict:
                         logger.debug(f"Memory overriden by hparam: {hparam_dict['memory']}")
                         config_kwargs["memory"] = int(hparam_dict["memory"])
+                    if "ephermal_storage" in hparam_dict:
+                        logger.debug(f"Ephermeral storage overriden by hparam: {hparam_dict['ephermal_storage']}")
+                        config_kwargs["ephermal_storage"] = int(
+                            hparam_dict["ephermal_storage"])
+                    if "special_gpu" in hparam_dict:
+                        logger.debug(f"Special GPU overriden by hparam: {hparam_dict['special_gpu']}")
+                        config_kwargs["special_gpu"] = hparam_dict["special_gpu"]
                         
                     if "shared" in config:
                         shared = config['shared']
