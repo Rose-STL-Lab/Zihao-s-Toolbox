@@ -255,7 +255,7 @@ def create_config(
     dev_command: str = None,
     gpu_count: int = 0,
     cpu_count: int = 5,
-    ephermal_storage: int = 100,
+    ephemeral_storage: int = 100,
     memory: int = 32,
     env: dict = {},
     project_name: str = None,
@@ -468,7 +468,7 @@ fi
                 ),
                 "memory": f"{int(memory * 1.2)}G",
                 "cpu": str(int(cpu_count * 1.2)),
-                **({"ephemeral-storage": f"{ephermal_storage}G"} if ephermal_storage != 0 else {})
+                **({"ephemeral-storage": f"{ephemeral_storage}G"} if ephemeral_storage != 0 else {})
             },
             "requests": {
                 **(
@@ -478,7 +478,7 @@ fi
                 ),
                 "memory": f"{memory}G",
                 "cpu": str(cpu_count),
-                **({"ephemeral-storage": f"{ephermal_storage}G"} if ephermal_storage != 0 else {})
+                **({"ephemeral-storage": f"{ephemeral_storage}G"} if ephemeral_storage != 0 else {})
             }
         },
         "volumeMounts": [
@@ -524,18 +524,18 @@ fi
             memory = server_config.get("memory", 32)
             cpu_count = server_config.get("cpu_count", 5)
             gpu_count = server_config.get("gpu_count", 0)
-            ephermal_storage = server_config.get("ephemeral_storage", 100)
+            ephemeral_storage = server_config.get("ephemeral_storage", 100)
             server_container["resources"]["limits"] = {
                 "memory": f"{int(memory * 1.2)}G",
                 "cpu": str(int(cpu_count * 1.2)),
                 "nvidia.com/gpu": str(gpu_count),
-                **({"ephemeral-storage": f"{ephermal_storage}G"} if ephermal_storage != 0 else {})
+                **({"ephemeral-storage": f"{ephemeral_storage}G"} if ephemeral_storage != 0 else {})
             }
             server_container["resources"]["requests"] = {
                 "memory": f"{memory}G",
                 "cpu": str(cpu_count),
                 "nvidia.com/gpu": str(gpu_count),
-                **({"ephemeral-storage": f"{ephermal_storage}G"} if ephermal_storage != 0 else {})
+                **({"ephemeral-storage": f"{ephemeral_storage}G"} if ephemeral_storage != 0 else {})
             }
             server_container["ports"] = [
                 {"containerPort": int(server_config["port"]), "name": server_name}
@@ -895,10 +895,10 @@ def batch(
                     if "memory" in hparam_dict:
                         logger.debug(f"Memory overriden by hparam: {hparam_dict['memory']}")
                         config_kwargs["memory"] = int(hparam_dict["memory"])
-                    if "ephermal_storage" in hparam_dict:
-                        logger.debug(f"Ephermeral storage overriden by hparam: {hparam_dict['ephermal_storage']}")
-                        config_kwargs["ephermal_storage"] = int(
-                            hparam_dict["ephermal_storage"])
+                    if "ephemeral_storage" in hparam_dict:
+                        logger.debug(f"Ephermeral storage overriden by hparam: {hparam_dict['ephemeral_storage']}")
+                        config_kwargs["ephemeral_storage"] = int(
+                            hparam_dict["ephemeral_storage"])
                     if "special_gpu" in hparam_dict:
                         logger.debug(f"Special GPU overriden by hparam: {hparam_dict['special_gpu']}")
                         config_kwargs["special_gpu"] = hparam_dict["special_gpu"]

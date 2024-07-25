@@ -27,7 +27,7 @@ def modify_pod_name(pod_name):
 
 def convert_to_string(data):
     if isinstance(data, dict):
-        exception_keys = ['gpu_count', 'cpu_count', 'ephermal_storage', 'memory', 'ssh_port', 'shared']
+        exception_keys = ['gpu_count', 'cpu_count', 'ephemeral_storage', 'memory', 'ssh_port', 'shared']
         return {k: (v if k in exception_keys else convert_to_string(v)) for k, v in data.items()}
     elif isinstance(data, list):
         return [convert_to_string(item) for item in data]

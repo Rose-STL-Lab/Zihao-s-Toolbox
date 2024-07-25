@@ -308,7 +308,7 @@ server_command: str, default to `sleep infinity`
 ## For CPU and Memory, the limit will be twice the requested
 gpu_count:        int, default to 0
 cpu_count:        int, in cores, default to 5
-ephermal_storage: int, in gigabytes, default to 100
+ephemeral_storage: int, in gigabytes, default to 100
 memory:           int, in gigabytes, default to 32
 
 ## Mount PVC to path
