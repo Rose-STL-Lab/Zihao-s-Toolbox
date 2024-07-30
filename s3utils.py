@@ -647,7 +647,9 @@ def keep_alive(interval=5):
         while True:
             time.sleep(interval)
             send_request("alive", "")
-    threading.Thread(target=send_alive).start()
+    life_support = threading.Thread(target=send_alive)
+    life_support.start()
+    return life_support
     
 
 if __name__ == "__main__":
