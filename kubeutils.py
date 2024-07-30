@@ -1027,7 +1027,8 @@ def batch(
                             echo_cmd += f"echo {file_encoding} | base64 -d > {name}.sh && chmod +x {name}.sh && "
                         if i == 0:
                             merge_cmd += startup_cmd + f" parallel --line-buffer --jobs {len(to_merge)} --tag :::"
-                        merge_cmd += f" \"conda run -n {env} /bin/bash `pwd`/{name}.sh\""
+                        sleep_time = i * 10
+                        merge_cmd += f" \"sleep {sleep_time} && conda run -n {env} /bin/bash `pwd`/{name}.sh\""
                         
                         total_cpu_limit += int(get_leading_int(
                             config["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"]["cpu"]
