@@ -902,6 +902,10 @@ def batch(
                     if "special_gpu" in hparam_dict:
                         logger.debug(f"Special GPU overriden by hparam: {hparam_dict['special_gpu']}")
                         config_kwargs["special_gpu"] = hparam_dict["special_gpu"]
+                    if "shared" in hparam_dict:
+                        logger.debug(f"Shared GPU overriden by hparam: {hparam_dict['shared']}")
+                        config_kwargs["shared"] = float(hparam_dict["shared"])
+                        config["shared"] = float(hparam_dict["shared"])
                         
                     if "shared" in config:
                         shared = config['shared']
@@ -1013,7 +1017,7 @@ def batch(
                     
                     for i, (name, config) in enumerate(to_merge):
                         merge_name += "-" + name[-5:]
-                        log += f"{name}, "
+                        log += f"{name}[{shared}], "
                         cmds = config["spec"]["template"]["spec"]["containers"][0]["command"]
                         env = cmds[3]  # conda run -n "env"
                         cmd = cmds[-1]

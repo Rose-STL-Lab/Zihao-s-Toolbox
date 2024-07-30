@@ -211,13 +211,24 @@ def loadable_artifacts(
         for art in reversed(artifacts):
             run = art.logged_by()
             conf = run.config
-            if compare_nested_dicts(conf, hparams):
-                loadable[run.id] = {
+            if hparams is None:
+                loadable[art.name] = {
                     'artifact': art,
+                    'run': run.id,
+                    'epoch': art.metadata['num_epochs'],
                     'conf': run.config,
                     'tags': run.tags
                 }
-                logger.info(f"Found matching config in run {run.id}, with tags{run.tags}")
+                logger.info(f"Found artifact {art.name}, logged by run {run.id} with tags{run.tags} at epoch {art.metadata['num_epochs']}")
+            elif compare_nested_dicts(conf, hparams):
+                loadable[art.name] = {
+                    'artifact': art,
+                    'run': run.id,
+                    'epoch': art.metadata['num_epochs'],
+                    'conf': run.config,
+                    'tags': run.tags
+                }
+                logger.info(f"Found matching artifact {art.name}, logged by run {run.id} with tags{run.tags} at epoch {art.metadata['num_epochs']}")
     except TypeError:
         logger.error(f"No artifacts found with type {artifact_type} and name {artifact_name}")
     return loadable
