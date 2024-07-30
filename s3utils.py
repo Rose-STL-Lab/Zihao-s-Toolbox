@@ -553,18 +553,21 @@ class RequestHandler(SimpleHTTPRequestHandler):
         elif command == 'remove':
             response = remove_s3_path(path)
         elif command == 'shutdown':
-            response = "Shutting down the server..."
-            os._exit(0)
+            response = "Byebye"
         else:
             response = "Invalid command"
 
         # Send response
-        self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.end_headers()
-        
-        response = json.dumps({"message": response})
-        self.wfile.write(response.encode('utf-8'))
+        try:
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            
+            response = json.dumps({"message": response})
+            self.wfile.write(response.encode('utf-8'))
+        finally:
+            if command == 'shutdown':
+                os._exit(0)
 
 
 def run(server_class=HTTPServer, handler_class=RequestHandler, port=API_SERVER_PORT):
