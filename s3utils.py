@@ -16,6 +16,7 @@ from pathlib import Path
 import re
 import socket
 import requests
+import threading
 
 
 S3_ENDPOINT_URL = os.getenv('S3_ENDPOINT_URL')
@@ -531,6 +532,52 @@ def monitor(folder_path, interval, log_file="monitor.log"):
 
     finally:
         release_lock(lock_path)
+        
+
+class TimedHTTPServer(HTTPServer):
+    def __init__(self, server_address, RequestHandlerClass, initial_timeout, idle_timeout):
+        super().__init__(server_address, RequestHandlerClass)
+        self.initial_timeout = initial_timeout
+        self.idle_timeout = idle_timeout
+        self.start_time = time.time()
+        self.last_request_time = None
+        self.shutdown_timer = None
+        self.start_shutdown_timer()
+
+    def start_shutdown_timer(self):
+        if self.shutdown_timer:
+            self.shutdown_timer.cancel()
+        
+        current_time = time.time()
+        
+        if self.last_request_time is None:
+            # We're still waiting for the first request
+            next_check = self.start_time + self.initial_timeout - current_time
+        else:
+            # We've received at least one request, use the idle timeout
+            next_check = self.idle_timeout
+        
+        self.shutdown_timer = threading.Timer(next_check, self.check_idle)
+        self.shutdown_timer.start()
+
+    def check_idle(self):
+        current_time = time.time()
+        if self.last_request_time is None:
+            # No requests received within initial timeout
+            if current_time - self.start_time >= self.initial_timeout:
+                logger.info("No initial request received within the specified time. Shutting down.")
+                self.shutdown()
+            else:
+                self.start_shutdown_timer()
+        elif current_time - self.last_request_time >= self.idle_timeout:
+            logger.info("No requests received for the specified idle time. Shutting down.")
+            self.shutdown()
+        else:
+            self.start_shutdown_timer()
+            
+    def update_last_request_time(self):
+        self.last_request_time = time.time()
+        self.start_shutdown_timer()
 
 
 class RequestHandler(SimpleHTTPRequestHandler):
@@ -554,9 +601,14 @@ class RequestHandler(SimpleHTTPRequestHandler):
             response = remove_s3_path(path)
         elif command == 'shutdown':
             response = "Byebye"
+        elif command == 'alive':  # Keep alive
+            response = "I'm alive"
         else:
             response = "Invalid command"
 
+        if isinstance(self.server, TimedHTTPServer):
+            self.server.update_last_request_time()
+        
         # Send response
         try:
             self.send_response(200)
@@ -570,19 +622,32 @@ class RequestHandler(SimpleHTTPRequestHandler):
                 os._exit(0)
 
 
-def run(server_class=HTTPServer, handler_class=RequestHandler, port=API_SERVER_PORT):
+def run(server_class=TimedHTTPServer, handler_class=RequestHandler, port=API_SERVER_PORT, initial_timeout=600, idle_timeout=10):
     server_address = ('', port)
     try:
-        httpd = server_class(server_address, handler_class)
-        logger.info(f"Server started at localhost: {port}")
+        httpd = server_class(server_address, handler_class, initial_timeout, idle_timeout)
+        logger.info(f"Server started at localhost:{port}")
         httpd.serve_forever()
     except OSError as e:
         if e.errno == 98:
             logger.error(f"Port {port} is already in use. Probably the server is already running?")
-            
+    finally:
+        if 'httpd' in locals():
+            httpd.shutdown_timer.cancel()
+            httpd.server_close()
+
             
 def shutdown_server():
     send_request("shutdown", "")
+    
+    
+def keep_alive(interval=5):
+    # Start a thread that keeps the server alive for every 5 seconds
+    def send_alive():
+        while True:
+            time.sleep(interval)
+            send_request("alive", "")
+    threading.Thread(target=send_alive).start()
     
 
 if __name__ == "__main__":
@@ -606,6 +671,8 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=API_SERVER_PORT, help="Port for the HTTP server")
     parser.add_argument("--interval", type=int, default=5, help="Polling interval in seconds.")
     parser.add_argument("--api", type=str, help="Use the API server for S3 operations", default="false")
+    parser.add_argument("--initial_timeout", type=int, default=600, help="Initial timeout in seconds, if running in server mode")
+    parser.add_argument("--idle_timeout", type=int, default=10, help="Idle timeout in seconds, if running in server mode")
     parser.add_argument("path", help="The S3 or local path pattern", type=str, nargs='?')
 
     args = parser.parse_args()
@@ -622,7 +689,7 @@ if __name__ == "__main__":
     if not args.server and not args.path:
         parser.error("the following arguments are required: path")
     if args.server:
-        run(port=args.port)
+        run(port=args.port, initial_timeout=args.initial_timeout, idle_timeout=args.idle_timeout)
     elif args.monitor:
         monitor(args.path, args.interval)
     elif args.find:
