@@ -641,15 +641,22 @@ def shutdown_server():
     send_request("shutdown", "")
     
     
-def keep_alive(interval=5):
-    # Start a thread that keeps the server alive for every 5 seconds
+def keep_alive(interval=5, stop_event=None):
+    if stop_event is None:
+        stop_event = threading.Event()
+
     def send_alive():
-        while True:
-            time.sleep(interval)
-            send_request("alive", "")
-    life_support = threading.Thread(target=send_alive)
+        while not stop_event.is_set():
+            try:
+                send_request("alive", "")
+            except Exception as e:
+                print(f"Error in keep-alive: {e}")
+            finally:
+                stop_event.wait(interval)
+
+    life_support = threading.Thread(target=send_alive, daemon=True)
     life_support.start()
-    return life_support
+    return life_support, stop_event
     
 
 if __name__ == "__main__":
