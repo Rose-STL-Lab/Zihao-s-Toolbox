@@ -1003,6 +1003,7 @@ def batch(
                     
                     # Parallel is required to run multiple commands in a single container
                     merge_cmd = ""
+                    echo_cmd = ""
                     total_cpu_limit = 0
                     total_cpu_request = 0
                     total_memory_limit = 0
@@ -1013,17 +1014,20 @@ def batch(
                     for i, (name, config) in enumerate(to_merge):
                         merge_name += "-" + name[-5:]
                         log += f"{name}, "
-                        cmd = config["spec"]["template"]["spec"]["containers"][0]["command"][-1]
+                        cmds = config["spec"]["template"]["spec"]["containers"][0]["command"]
+                        env = cmds[3]  # conda run -n "env"
+                        cmd = cmds[-1]
                         if "source startup.sh;" in cmd:
-                            idx = cmd.index("source startup.sh;")
+                            split_pattern = "source startup.sh;"
+                            idx = cmd.index(split_pattern) + len(split_pattern)
                             startup_cmd = cmd[:idx]
-                            cmd = cmd[idx:]
-                        
-                        # Escape double quotes in the command
-                        cmd = cmd.replace('"', '\\\"')
+                            cmd = cmd[idx:].strip()
+                            cmd = f'#!/bin/bash\n{cmd}'
+                            file_encoding = base64.b64encode(bytes(cmd, 'utf-8')).decode('utf-8')
+                            echo_cmd += f"echo {file_encoding} | base64 -d > {name}.sh && chmod +x {name}.sh && "
                         if i == 0:
                             merge_cmd += startup_cmd + f" parallel --line-buffer --jobs {len(to_merge)} --tag :::"
-                        merge_cmd += f" \"{cmd}\" "
+                        merge_cmd += f" \"conda run -n {env} /bin/bash `pwd`/{name}.sh\""
                         
                         total_cpu_limit += int(get_leading_int(
                             config["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"]["cpu"]
@@ -1031,10 +1035,10 @@ def batch(
                         total_cpu_request += int(get_leading_int(
                             config["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"]["cpu"]
                         ))
-                        total_memory_limit += int(get_leading_int(
+                        total_memory_limit = max(total_memory_limit, get_leading_int(
                             config["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"]["memory"]
                         ))
-                        total_memory_request += int(get_leading_int(
+                        total_memory_request = max(total_memory_request, get_leading_int(
                             config["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"]["memory"]
                         ))
                         total_storage_limit += int(get_leading_int(
@@ -1045,7 +1049,11 @@ def batch(
                         ))
                         
                     config["metadata"]["name"] = merge_name
-                    config["spec"]["template"]["spec"]["containers"][0]["command"][-1] = merge_cmd
+                    config["spec"]["template"]["spec"]["containers"][0]["command"] = [
+                        "/bin/bash",
+                        "-c",
+                        echo_cmd + merge_cmd
+                    ]
                     
                     config["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"]["cpu"] = str(total_cpu_limit)
                     config["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"]["cpu"] = str(total_cpu_request)

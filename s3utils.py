@@ -622,7 +622,7 @@ class RequestHandler(SimpleHTTPRequestHandler):
                 os._exit(0)
 
 
-def run(server_class=TimedHTTPServer, handler_class=RequestHandler, port=API_SERVER_PORT, initial_timeout=600, idle_timeout=10):
+def run(server_class=TimedHTTPServer, handler_class=RequestHandler, port=API_SERVER_PORT, initial_timeout=600, idle_timeout=30):
     server_address = ('', port)
     try:
         httpd = server_class(server_address, handler_class, initial_timeout, idle_timeout)
@@ -674,7 +674,7 @@ if __name__ == "__main__":
     parser.add_argument("--interval", type=int, default=5, help="Polling interval in seconds.")
     parser.add_argument("--api", type=str, help="Use the API server for S3 operations", default="false")
     parser.add_argument("--initial_timeout", type=int, default=600, help="Initial timeout in seconds, if running in server mode")
-    parser.add_argument("--idle_timeout", type=int, default=10, help="Idle timeout in seconds, if running in server mode")
+    parser.add_argument("--idle_timeout", type=int, default=30, help="Idle timeout in seconds, if running in server mode")
     parser.add_argument("path", help="The S3 or local path pattern", type=str, nargs='?')
 
     args = parser.parse_args()
