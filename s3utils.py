@@ -642,6 +642,9 @@ def shutdown_server():
     
     
 def keep_alive(interval=5, stop_event=None):
+    if not api_server_online():
+        logger.warning("API server is not online. Cannot send keep-alive.")
+        return None, None
     if stop_event is None:
         stop_event = threading.Event()
 
