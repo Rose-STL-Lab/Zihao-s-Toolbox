@@ -5,7 +5,8 @@ import itertools
 import subprocess
 import json
 from copy import deepcopy
-from typing import List, Dict, Any
+import inspect
+from typing import List, Dict, Any, get_type_hints
 import os
 import base64
 import sys
@@ -21,12 +22,59 @@ with open("config/kube.yaml", "r") as f:
 logger = CustomLogger()
 
 
+def merge_lists(*lists):
+    from collections import defaultdict, deque
+
+    # Step 1: Create a graph to represent dependencies
+    graph = defaultdict(set)
+    indegree = defaultdict(int)
+    all_elements = set()
+
+    for lst in lists:
+        for i in range(len(lst)):
+            all_elements.add(lst[i])
+            if i > 0:
+                if lst[i] not in graph[lst[i - 1]]:
+                    graph[lst[i - 1]].add(lst[i])
+                    indegree[lst[i]] += 1
+
+    # Step 2: Topological Sort using Kahn's Algorithm
+    zero_indegree = deque([elem for elem in all_elements if indegree[elem] == 0])
+    result = []
+
+    while zero_indegree:
+        current = zero_indegree.popleft()
+        result.append(current)
+        for neighbor in graph[current]:
+            indegree[neighbor] -= 1
+            if indegree[neighbor] == 0:
+                zero_indegree.append(neighbor)
+
+    return result
+
+
 def get_leading_int(string):
     match = re.match(r'^(\d+)', string)
     if match:
         return int(match.group(1))
     else:
         return None
+    
+
+def init_helper(current, key, settings, default):
+    if current is None:
+        return default if (settings is None or key not in settings or settings[key] is None) else settings[key]
+    else:
+        return current
+    
+    
+def update_helper(config, key, dest_config):
+    """
+    Copies the config key to the new config
+    if the config exists and the key is present
+    """
+    if config is not None and key in config and config[key] is not None:
+        dest_config.update(config[key])
 
 
 def markdown_link_handler(command, return_type):
@@ -246,13 +294,132 @@ def validate(command):
         elif ';' in word or '&' in word:
             # Reset the flag when ';' or '&' is encountered
             command_found = False
+       
+            
+def build_and_create_shared_jobs(shared_pool, project_name, mode, overwrite):
+    """
+    Build and create shared jobs from the given shared pool configurations.
+
+    This function processes a dictionary of shared job configurations, merges them based on shared resources,
+    and writes the merged configurations to YAML files. It also logs the operations and deploys the jobs if required.
+
+    Args:
+        shared_pool (dict): A dictionary containing the shared job configurations.
+        project_name (str): The name of the project.
+        mode (str): The mode of operation, job or dryrun.
+        overwrite (bool): Whether to overwrite existing jobs.
+    """
+    AGG = {"cpu": sum, "memory": max, "ephemeral-storage": sum}
+    UNIT = {"cpu": "", "memory": "Gi", "ephemeral-storage": "Gi"}
+    
+    if shared_pool:
+        for key, shared_configs in shared_pool.items():
+            to_merge = []
+            total = 0
+            while shared_configs:
+                shared_config = shared_configs.pop()
+                to_merge.append(shared_config)
+                total += shared_config['shared']
+                
+                if not shared_configs or total + shared_configs[-1]['shared'] > 1.0:
+                    prefix = (shared_config['prefix'] + '-') if shared_config['prefix'] != '' else ''
+                    merge_name = f"{prefix}{project_name}-shared"
+                    log = "Jobs "
+                    
+                    merge_cmd = ""
+                    echo_cmd = ""
+                    
+                    total_resources = {
+                        'limits': {rname: 0 for rname in AGG},
+                        'requests': {rname: 0 for rname in AGG}
+                    }
+                    for i, shared_config in enumerate(to_merge):
+                        name = shared_config['name']
+                        shared = shared_config['shared']
+                        config = shared_config['config']
+                        
+                        merge_name += "-" + name[-5:]
+                        log += f"{name}[{shared}], "
+                        cmds = config["spec"]["template"]["spec"]["containers"][0]["command"]
+                        env = cmds[3]  # conda run -n {env}
+                        cmd = cmds[-1]
+                        if "source startup.sh;" in cmd:
+                            split_pattern = "source startup.sh;"
+                            idx = cmd.index(split_pattern) + len(split_pattern)
+                            startup_cmd = cmd[:idx]
+                            cmd = cmd[idx:].strip()
+                            cmd = f'#!/bin/bash\n{cmd}'
+                            file_encoding = base64.b64encode(bytes(cmd, 'utf-8')).decode('utf-8')
+                            echo_cmd += f"echo {file_encoding} | base64 -d > {name}.sh && chmod +x {name}.sh && "
+                        if i == 0:
+                            merge_cmd += startup_cmd + f" parallel --line-buffer --jobs {len(to_merge)} --tag :::"
+                        sleep_time = i * 10
+                        merge_cmd += f" \"sleep {sleep_time} && conda run -n {env} /bin/bash `pwd`/{name}.sh\""
+
+                        # GPU container's resources 
+                        resources = config["spec"]["template"]["spec"]["containers"][0]["resources"]
+                            
+                        for lr in ["limits", "requests"]:
+                            for rname, agg in AGG.items():
+                                total_resources[lr][rname] = agg([
+                                    total_resources[lr][rname], 
+                                    get_leading_int(resources[lr][rname])
+                                ])
+                            
+                    config["metadata"]["name"] = merge_name
+                    config["spec"]["template"]["spec"]["containers"][0]["command"] = [
+                        "/bin/bash",
+                        "-c",
+                        echo_cmd + merge_cmd
+                    ]
+                    
+                    for lr in ["limits", "requests"]:
+                        for rname, unit in UNIT.items():
+                            resources[lr][rname] = f"{total_resources[lr][rname]}{unit}"
+                        
+                    to_merge = []
+                    total = 0
+                    
+                    with open(f"build/{merge_name}.yaml", "w") as f:
+                        yaml.dump(config, f, indent=2, width=float("inf"))
+                        log = log[:-2] + f" are merged into {merge_name} and saved to build/{merge_name}.yaml."
+                        logger.debug(log)
+                    if mode == "job":
+                        deploy_job(merge_name, overwrite)
+                        
+                        
+def update_env(env):
+    """
+    Update the environment variables with the necessary variables for the job.
+    """
+    if "PYTHONPATH" not in env:
+        env["PYTHONPATH"] = "src"
+    elif "src" not in env["PYTHONPATH"].split(":"):
+        env["PYTHONPATH"] += ":src"
+    if "WANDB_MODE" in env:
+        env["WANDB_MODE"] = "online"  # Always use online mode in the cluster
+    if "CUDA_VISIBLE_DEVICES" in env:
+        del env["CUDA_VISIBLE_DEVICES"]  # Always use all GPUs in the cluster
+    # Map the S3 endpoint to the internal endpoint
+    nautilus_s3_map = {
+        'https://s3-west.nrp-nautilus.io': 'http://rook-ceph-rgw-nautiluss3.rook',
+        'https://s3-central.nrp-nautilus.io': 'http://rook-ceph-rgw-centrals3.rook-central',
+        'https://s3-east.nrp-nautilus.io': 'http://rook-ceph-rgw-easts3.rook-east',
+        'https://s3-haosu.nrp-nautilus.io': 'http://rook-ceph-rgw-haosu.rook-haosu',
+        'https://s3-tide.nrp-nautilus.io': 'http://rook-ceph-rgw-tide.rook-tide'
+    }
+    for env_key in env:
+        if env[env_key] in nautilus_s3_map:
+            env[env_key] = nautilus_s3_map[env[env_key]]
+
+    env = [{'name': k, 'value': v} for k, v in env.items()]
+    return env
     
 
 def create_config(
     # Pod config
     name: str,
     command: str,
-    dev_command: str = None,
     gpu_count: int = 0,
     cpu_count: int = 5,
     ephemeral_storage: int = 100,
@@ -295,6 +462,7 @@ def create_config(
     # Omit undefined kwargs
     **ignored
 ):
+    # Prevent sleep infinity in job
     assert startup_script is None or "sleep infinity" not in startup_script
     assert "sleep infinity" not in command
 
@@ -302,79 +470,28 @@ def create_config(
         if key != "hparam":
             logger.warning(f"Key {key}={value} is unknown. Ignoring it.")
 
-    # Initialization
-    if prefix is None and "prefix" in settings:
-        prefix = settings["prefix"]
-    if not prefix == "":
-        if prefix is None:
-            prefix = settings['user']
-        name = f"{prefix}-{name}"
-    if namespace is None:
-        namespace = settings["namespace"]
-    if user is None:
-        user = settings["user"]
-    if gitlab_user is None:
-        if "gitlab_user" in settings:
-            gitlab_user = settings["gitlab_user"]
-        else:
-            gitlab_user = user
-    if project_name is None:
-        project_name = settings["project_name"]
-    if conda_env_name is None:
-        if "conda_env_name" in settings and settings["conda_env_name"] is not None:
-            conda_env_name = settings["conda_env_name"]
-        else:
-            conda_env_name = project_name
-    if image is None:
-        if "image" in settings:
-            image = settings["image"]
-        else:
-            if registry_host is None:
-                if "registry_host" in settings:
-                    registry_host = settings["registry_host"]
-                else:
-                    registry_host = "gitlab-registry.nrp-nautilus.io"
-            image = f"{registry_host}/{gitlab_user}/{project_name}:latest"
-    if image_pull_secrets is None:
-        if "image_pull_secrets" in settings:
-            image_pull_secrets = settings["image_pull_secrets"]
-        else:
-            image_pull_secrets = f"{project_name}-read-registry"
-    if gpu_blacklist is None and gpu_whitelist is None:
-        if special_gpu is None and "gpu_blacklist" in settings:
-            gpu_blacklist = settings["gpu_blacklist"]
-        if special_gpu is None and "gpu_whitelist" in settings:
-            gpu_whitelist = settings["gpu_whitelist"]
+    # Required entries
+    user = settings["user"]
+    namespace = settings["namespace"]
+    project_name = settings["project_name"]
+    
+    prefix = init_helper(prefix, "prefix", settings, settings["user"])
+    gitlab_user = init_helper(gitlab_user, "gitlab_user", settings, user)
+    conda_env_name = init_helper(conda_env_name, "conda_env_name", settings, project_name)
+    registry_host = init_helper(registry_host, "registry_host", settings, "gitlab-registry.nrp-nautilus.io")
+    image = init_helper(image, "image", settings, f"{registry_host}/{gitlab_user}/{project_name}:latest")
+    image_pull_secrets = init_helper(image_pull_secrets, "image_pull_secrets", settings, f"{project_name}-read-registry")
+    hostname_blacklist = init_helper(hostname_blacklist, "hostname_blacklist", settings, None)
+    hostname_whitelist = init_helper(hostname_whitelist, "hostname_whitelist", settings, None)
+    special_gpu = init_helper(special_gpu, "special_gpu", settings, None)
     if special_gpu is not None:
-        gpu_blacklist = None
-        gpu_whitelist = None
-    if hostname_blacklist is None and hostname_whitelist is None:
-        if "hostname_blacklist" in settings:
-            hostname_blacklist = settings["hostname_blacklist"]
-        if "hostname_whitelist" in settings:
-            hostname_whitelist = settings["hostname_whitelist"]
-    if startup_script is None:
-        if "startup_script" in settings:
-            startup_script = settings["startup_script"]
-        else:
-            if "conda_home" in settings:
-                conda_home = settings['conda_home']
-            else:
-                conda_home = "/opt/conda"
-
-            if ssh_host is None or ssh_port is None:
-                if "ssh_host" in settings and "ssh_port" in settings:
-                    ssh_port = settings["ssh_port"]
-                    ssh_host = settings["ssh_host"]
-                else:
-                    ssh_port = "30622"
-                    ssh_host = "gitlab-ssh.nrp-nautilus.io"
-            if conda_env_name != "base":
-                conda_env_path = f"{conda_home}/envs/{conda_env_name}"
-            else:
-                conda_env_path = f"{conda_home}"
-            startup_script = (
-                f"""#!/bin/bash
+        gpu_blacklist = init_helper(gpu_blacklist, "gpu_blacklist", settings, None)
+        gpu_whitelist = init_helper(gpu_whitelist, "gpu_whitelist", settings, None)
+    ssh_port = init_helper(ssh_port, "ssh_port", settings, "30622")
+    ssh_host = init_helper(ssh_host, "ssh_host", settings, "gitlab-ssh.nrp-nautilus.io")
+    conda_home = init_helper(None, "conda_home", settings, "/opt/conda")
+    conda_env_path = f"{conda_home}/envs/{conda_env_name}" if conda_env_name != "base" else f"{conda_home}"
+    startup_script = init_helper(startup_script, "startup_script", settings, f"""#!/bin/bash
 mkdir -p config
 git pull
 git submodule update --init --recursive
@@ -385,21 +502,21 @@ if [ -f src/toolbox/s3region.sh ]; then
     chmod +x src/toolbox/s3region.sh
     source src/toolbox/s3region.sh
 fi
-"""
-            )
-            if extra_startup_script is not None:
-                startup_script += extra_startup_script
-                if not extra_startup_script.endswith("\n"):
-                    startup_script += "\n"
-    if file is not None:
-        if '.env' not in file:
-            file.append('.env')
-        if 'config/kube.yaml' not in file:
-            file.append('config/kube.yaml')
-        if 'config/launch.yaml' not in file:
-            file.append('config/launch.yaml')
-
-        startup_script += "\n".join(file_to_script(file))
+""")
+    extra_startup_script = init_helper(extra_startup_script, "extra_startup_script", settings, None)
+    if extra_startup_script is not None:
+        startup_script += extra_startup_script
+        if not extra_startup_script.endswith("\n"):
+            startup_script += "\n"
+    file = init_helper(file, "file", settings, [])
+    if '.env' not in file:
+        file.append('.env')
+    if 'config/kube.yaml' not in file:
+        file.append('config/kube.yaml')
+    if 'config/launch.yaml' not in file:
+        file.append('config/launch.yaml')
+    startup_script += "\n".join(file_to_script(file))
+    
     # Save startup script to build/
     with open(f"build/{name}.sh", "w") as f:
         f.write(startup_script)
@@ -407,42 +524,16 @@ fi
         bytes(startup_script, 'utf-8')).decode('utf-8')
     load_startup_script = f"echo {startup_encoding} | base64 -d > startup.sh && chmod +x startup.sh && source startup.sh; "
 
-    if tolerations is None:
-        if "tolerations" in settings:
-            tolerations = settings["tolerations"]
-        else:
-            tolerations = []
-    if volumes is None:
-        if "volumes" in settings:
-            volumes = settings["volumes"]
-        else:
-            volumes = {}
-    if "PYTHONPATH" not in env:
-        env["PYTHONPATH"] = "src"
-    elif "src" not in env["PYTHONPATH"].split(":"):
-        env["PYTHONPATH"] += ":src"
-    if "WANDB_MODE" in env:
-        env["WANDB_MODE"] = "online"  # Always use online mode in the cluster
-    if "CUDA_VISIBLE_DEVICES" in env:
-        del env["CUDA_VISIBLE_DEVICES"]  # Always use all GPUs in the cluster
-    # Map the S3 endpoint to the internal endpoint
-    nautilus_s3_map = {
-        'https://s3-west.nrp-nautilus.io': 'http://rook-ceph-rgw-nautiluss3.rook',
-        'https://s3-central.nrp-nautilus.io': 'http://rook-ceph-rgw-centrals3.rook-central',
-        'https://s3-east.nrp-nautilus.io': 'http://rook-ceph-rgw-easts3.rook-east',
-        'https://s3-haosu.nrp-nautilus.io': 'http://rook-ceph-rgw-haosu.rook-haosu',
-        'https://s3-tide.nrp-nautilus.io': 'http://rook-ceph-rgw-tide.rook-tide'
-    }
-    for env_key in env:
-        if env[env_key] in nautilus_s3_map:
-            env[env_key] = nautilus_s3_map[env[env_key]]
-
-    env = [{'name': k, 'value': v} for k, v in env.items()]
-
+    tolerations = init_helper(tolerations, "tolerations", settings, [])
+    volumes = init_helper(volumes, "volumes", settings, {})
+    env = update_env(env)
+    
     metadata = {
         "namespace": namespace,
         "labels": {"user": user, "project": project_name}
     }
+    
+    # Handle syntax sugar for command
     command = re.sub(r'##(.*?)##', '', command)
     command = markdown_link_handler(command, 2).strip()
     
@@ -647,7 +738,10 @@ fi
                         container["resources"][entry]["nvidia.com/gpu"] = str(int(int(container["resources"][entry]["nvidia.com/gpu"]) * gpu_ratio))
                     if "memory" in container["resources"][entry]:
                         memory = int(get_leading_int(container["resources"][entry]["memory"]))
-                        container["resources"][entry]["memory"] = f"{int(memory * memory_ratio)}Gi"
+                        memory_ = int(memory * memory_ratio)
+                        if memory_ == 0:
+                            memory_ = 1
+                        container["resources"][entry]["memory"] = f"{memory_}Gi"
                     if "cpu" in container["resources"][entry]:
                         container["resources"][entry]["cpu"] = str(float(container["resources"][entry]["cpu"]) * cpu_ratio)
 
@@ -752,9 +846,10 @@ def batch(
 ):
     """
     mode: str
-        mode=job: Create jobs in the Kubernetes cluster
-        mode=local: Runs jobs locally
-        mode=dryrun: Only creates the job files without deploying them
+        mode=job:          Create jobs in the Kubernetes cluster
+        mode=local:        Runs jobs locally
+        mode=dryrun:       Only creates the job files without deploying them
+        mode=local-first:  Runs the first job locally
         mode=local-dryrun: Only prints the local commands without running them
     """
     # Initialization
@@ -769,14 +864,12 @@ def batch(
                 run_configs["hparam"][key] = [val]
                 
     shared_pool = {}  # Pool for shared GPU configs
-
+    
     for dataset in run_configs["dataset"]:
         for model in run_configs["model"]:
             hparam = {}
-            if dataset_configs[dataset] is not None and "hparam" in dataset_configs[dataset]:
-                hparam.update(dataset_configs[dataset]["hparam"])
-            if model_configs[model] is not None and "hparam" in model_configs[model]:
-                hparam.update(model_configs[model]["hparam"])
+            update_helper(dataset_configs[dataset], "hparam", hparam)
+            update_helper(model_configs[model], "hparam", hparam)
 
             for config, hparam_dict in zip(*fill_val(model_configs[model], hparam)):
                 model_n = normalize(model)
@@ -814,12 +907,10 @@ def batch(
                         del config["hparam"]
 
                     config_kwargs = deepcopy(kwargs)
-                    if 'model' in config_kwargs:
-                        del config_kwargs['model']
-                    if 'dataset' in config_kwargs:
-                        del config_kwargs['dataset']
-                    if 'run' in config_kwargs:
-                        del config_kwargs['run']
+                    for key in ["model", "dataset", "hparam"]:  # Remove runwise keys
+                        if key in config_kwargs:
+                            del config_kwargs[key]
+                            
                     if kwargs['model'][model] is not None:
                         config_kwargs.update(kwargs['model'][model])
                     if kwargs['dataset'][dataset] is not None:
@@ -841,8 +932,7 @@ def batch(
                     if "local" in mode:
                         if "local_command" in config_kwargs:
                             model_configs[model]['command'] = model_configs[model]['local_command']
-                        cmd = fill_val({'_': model_configs[model]['command']}, hparam_dict)[
-                            0][0]['_']
+                        cmd = fill_val({'_': model_configs[model]['command']}, hparam_dict)[0][0]['_']
                         if "NODE_NAME" in os.environ:
                             # make local inside the node
                             cmd = markdown_link_handler(cmd, 2).strip()
@@ -877,37 +967,29 @@ def batch(
 
                     hparam_dict = {k[1:] if k.startswith(
                         "_") else k: v for k, v in hparam_dict.items()}
-                    if "gpu_count" in hparam_dict:
-                        logger.debug(f"GPU count overriden by hparam: {hparam_dict['gpu_count']}")
-                        config_kwargs["gpu_count"] = int(
-                            hparam_dict["gpu_count"])
-                    if "gpu_whitelist" in hparam_dict:
-                        logger.debug(f"GPU white list overriden by hparam: {hparam_dict['gpu_whitelist']}")
-                        if type(hparam_dict["gpu_whitelist"]) is str:
-                            config_kwargs["gpu_whitelist"] = [
-                                hparam_dict["gpu_whitelist"]]
-                        else:
-                            config_kwargs["gpu_whitelist"] = hparam_dict["gpu_whitelist"]
-                    if "cpu_count" in hparam_dict:
-                        logger.debug(f"CPU count overriden by hparam: {hparam_dict['cpu_count']}")
-                        config_kwargs["cpu_count"] = int(
-                            hparam_dict["cpu_count"])
-                    if "memory" in hparam_dict:
-                        logger.debug(f"Memory overriden by hparam: {hparam_dict['memory']}")
-                        config_kwargs["memory"] = int(hparam_dict["memory"])
-                    if "ephemeral_storage" in hparam_dict:
-                        logger.debug(f"Ephermeral storage overriden by hparam: {hparam_dict['ephemeral_storage']}")
-                        config_kwargs["ephemeral_storage"] = int(
-                            hparam_dict["ephemeral_storage"])
-                    if "special_gpu" in hparam_dict:
-                        logger.debug(f"Special GPU overriden by hparam: {hparam_dict['special_gpu']}")
-                        config_kwargs["special_gpu"] = hparam_dict["special_gpu"]
-                    if "shared" in hparam_dict:
-                        logger.debug(f"Shared GPU overriden by hparam: {hparam_dict['shared']}")
-                        config_kwargs["shared"] = float(hparam_dict["shared"])
-                        config["shared"] = float(hparam_dict["shared"])
+                    
+                    def override_helper(hparam, key, value_type, dest_config):
+                        if key in hparam and hparam(key) is not None:
+                            if value_type is None:
+                                dest_config[key] = hparam(key)
+                            elif value_type is list or value_type is List[str] or value_type is List:
+                                if type(hparam(key)) is str:
+                                    dest_config[key] = [hparam(key)]
+                                else:
+                                    dest_config[key] = hparam(key)
+                            else:
+                                dest_config[key] = value_type(hparam(key))
+                            logger.debug(f"{key} overriden by hparam: {hparam(key)}")
+                    
+                    create_config_signature = inspect.signature(create_config)
+                    
+                    # Override the k8s config with hparam
+                    for param_name, param_type in create_config_signature.parameters.items():
+                        override_helper(hparam_dict, param_name, param_type.annotation, config_kwargs)
                         
-                    if "shared" in config:
+                    if "shared" in config_kwargs:
+                        shared = config_kwargs['shared']
+                    elif "shared" in config:
                         shared = config['shared']
                     else:
                         shared = 1.0
@@ -918,27 +1000,12 @@ def batch(
                         **config_kwargs
                     )
 
-                    original_command = config["spec"]["template"]["spec"]["containers"][0]["command"][-1].strip()
-                    if "run_mode" in hparam_dict and "dev" in hparam_dict["run_mode"] and "dev_command" in config_kwargs:
-                        config["spec"]["template"]["spec"]["containers"][0]["command"][-1] = re.sub(
-                            r'(accelerate launch|python) .*\.py',
-                            config_kwargs['dev_command'],
-                            config["spec"]["template"]["spec"]["containers"][0]["command"][-1]
-                        )
-                        logger.debug(f"Command overriden by hparam: {config_kwargs['dev_command']}")
                     cmd = config["spec"]["template"]["spec"]["containers"][0]["command"][-1].strip()
 
                     if "source startup.sh;" in cmd:
-                        original_command = original_command[original_command.index("source startup.sh;"):]
                         cmd = cmd[cmd.index("source startup.sh;"):]
-
-                    if "run_mode" in hparam_dict and "dev" in hparam_dict["run_mode"] and "dev_command" in config_kwargs:
-                        logger.info(f"Generated kube config {json.dumps(hparam_dict, indent=2)} ... \n"
-                                    f"\nDEV command: \n```\n{cmd}\n```"
-                                    f"\nORIGINAL command: \n```\n{original_command}\n```\nand saved to build/{name}.yaml")
-                    else:
-                        logger.info(f"Generated kube config {json.dumps(hparam_dict, indent=2)} ... ")
-                        logger.debug(f"```\n{cmd}\n```\nand saved to build/{name}.yaml")
+                    logger.info(f"Generated kube config {json.dumps(hparam_dict, indent=2)} ... ")
+                    logger.debug(f"```\n{cmd}\n```\nand saved to build/{name}.yaml")
                     validate(cmd)
 
                     name = config["metadata"]["name"]
@@ -984,98 +1051,7 @@ def batch(
                         if mode == "job":
                             deploy_job(name, overwrite)
     
-    # Build and create shared jobs
-    if shared_pool:
-        for key, configs in shared_pool.items():
-            to_merge = []
-            total = 0
-            while configs:
-                config = configs.pop()
-                name = config['name']
-                shared = config['shared']
-                prefix = config['prefix']
-                config = config['config']
-                to_merge.append((name, config))
-                total += shared
-                
-                # Last config or total shared GPU is going to exceed 1.0
-                if not configs or total + configs[-1]['shared'] > 1.0:
-                    # Merged config
-                    prefix = (prefix + '-') if prefix != '' else ''
-                    merge_name = f"{prefix}{project_name}-shared"
-                    log = "Jobs "
-                    
-                    # Parallel is required to run multiple commands in a single container
-                    merge_cmd = ""
-                    echo_cmd = ""
-                    total_cpu_limit = 0
-                    total_cpu_request = 0
-                    total_memory_limit = 0
-                    total_memory_request = 0
-                    total_storage_limit = 0
-                    total_storage_request = 0
-                    
-                    for i, (name, config) in enumerate(to_merge):
-                        merge_name += "-" + name[-5:]
-                        log += f"{name}[{shared}], "
-                        cmds = config["spec"]["template"]["spec"]["containers"][0]["command"]
-                        env = cmds[3]  # conda run -n "env"
-                        cmd = cmds[-1]
-                        if "source startup.sh;" in cmd:
-                            split_pattern = "source startup.sh;"
-                            idx = cmd.index(split_pattern) + len(split_pattern)
-                            startup_cmd = cmd[:idx]
-                            cmd = cmd[idx:].strip()
-                            cmd = f'#!/bin/bash\n{cmd}'
-                            file_encoding = base64.b64encode(bytes(cmd, 'utf-8')).decode('utf-8')
-                            echo_cmd += f"echo {file_encoding} | base64 -d > {name}.sh && chmod +x {name}.sh && "
-                        if i == 0:
-                            merge_cmd += startup_cmd + f" parallel --line-buffer --jobs {len(to_merge)} --tag :::"
-                        sleep_time = i * 10
-                        merge_cmd += f" \"sleep {sleep_time} && conda run -n {env} /bin/bash `pwd`/{name}.sh\""
-                        
-                        total_cpu_limit += int(get_leading_int(
-                            config["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"]["cpu"]
-                        ))
-                        total_cpu_request += int(get_leading_int(
-                            config["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"]["cpu"]
-                        ))
-                        total_memory_limit = max(total_memory_limit, get_leading_int(
-                            config["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"]["memory"]
-                        ))
-                        total_memory_request = max(total_memory_request, get_leading_int(
-                            config["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"]["memory"]
-                        ))
-                        total_storage_limit += int(get_leading_int(
-                            config["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"]["ephemeral-storage"]
-                        ))
-                        total_storage_request += int(get_leading_int(
-                            config["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"]["ephemeral-storage"]
-                        ))
-                        
-                    config["metadata"]["name"] = merge_name
-                    config["spec"]["template"]["spec"]["containers"][0]["command"] = [
-                        "/bin/bash",
-                        "-c",
-                        echo_cmd + merge_cmd
-                    ]
-                    
-                    config["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"]["cpu"] = str(total_cpu_limit)
-                    config["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"]["cpu"] = str(total_cpu_request)
-                    config["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"]["memory"] = f"{total_memory_limit}Gi"
-                    config["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"]["memory"] = f"{total_memory_request}Gi"
-                    config["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"]["ephemeral-storage"] = f"{total_storage_limit}Gi"
-                    config["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"]["ephemeral-storage"] = f"{total_storage_request}Gi"
-                    
-                    to_merge = []
-                    total = 0
-                    
-                    with open(f"build/{merge_name}.yaml", "w") as f:
-                        yaml.dump(config, f, indent=2, width=float("inf"))
-                        log = log[:-2] + f" are merged into {merge_name} and saved to build/{merge_name}.yaml."
-                        logger.debug(log)
-                    if mode == "job":
-                        deploy_job(merge_name, overwrite)
+    build_and_create_shared_jobs(shared_pool, project_name, mode, overwrite)
 
 
 if __name__ == "__main__":

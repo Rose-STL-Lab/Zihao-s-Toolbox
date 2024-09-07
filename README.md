@@ -11,7 +11,6 @@ This toolbox is designed to facilitate the synchronization between a Kubernetes 
 - Compatibility with a wide range of projects, even those already utilizing configuration files.
 - Capability to execute all combinations of experiments in parallel with a single command.
 
-
 ### Requirements
 
 Python packages:
@@ -24,6 +23,11 @@ Other requirements:
 
 - [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) (required, for interacting with Kubernetes cluster)
 - [s5cmd](https://github.com/peak/s5cmd) (optional, needed to be in PATH, for faster S3 operations)
+
+### Before proceeding
+
+- Use **hyphen -** instead of **underscore _** for separators in your project name
+- The setup would be a lot easier if you sync up your github, gitlab repo name, conda environment name, and carefully follow all naming conventions. While you can customize if some of them do not match, I cannot test over all scenarios.
 
 ## 1. Quick Start (for Nautilus user):
 
@@ -62,18 +66,22 @@ echo "import sys, statistics; print(statistics.median(map(float, open(sys.argv[1
 ```
 
 Create a .env file with your S3 bucket details:
+
 ```bash
 vim .env
 ```
+
 ```ini
 S3_BUCKET_NAME=example
 S3_ENDPOINT_URL=https://s3-west.nrp-nautilus.io
 ```
 
 Setup your Kubernetes configuration in `config/kube.yaml` (replace `<NAMESPACE>` and `<USER>` with your details):
+
 ```bash
 mkdir -p config; vim config/kube.yaml
 ```
+
 ```yaml
 project_name: example
 namespace: <NAMESPACE>
@@ -88,6 +96,7 @@ Define the experiment configurations in `config/launch.yaml`:
 ```bash
 vim config/launch.yaml
 ```
+
 ```yaml
 project_name: example
 model:
@@ -124,15 +133,19 @@ run:
 ```
 
 > #### Understanding Launch Configuration
+>
 > - `[](make download file=data/;)` is a syntax sugar. Sometimes, we expect slight difference between local and remote commands (like we don't need to re-download data in local runs). Here we use `[]` to indicate the local command (which is doing nothing here), and `()` to indicate the remote command.
 > - Another useful syntax sugar is `##comment##`, as yaml does not support comments in multi-line strings. You can use a pair of `##` to indicate comments, and they will be removed before execution.
 > - In `python src/med.py <fn>`, `<fn>` will be replaced by the values defined in `hparam` section. Hypermeters can be defined in both `model` and `dataset` sections. They are placeholders such that you don't need to copy and paste the same command with slight modifications.
 > - `gpu_count` are model-wise / dataset-wise kubernetes configurations that can be overridden in `launch.yaml`. See Section 2 for all overridable fields. If you don't specify them, they will be inherited from `kube.yaml`. If you specify the same field in both `model` and `dataset`, the one in `model` will take precedence.
 > - `run` section specifies the combinations of experiments to run. You can also add `hparam` to the `run` section to specify the hyperparameters you want to run. If you don't specify the `hparam`, all possible combinations of hyperparameters will be run.
+>
 > #### Advanced Configuration
-> - You can specify an additional file section. (example: `file: [src/temp.py]`). Then, when you run `make pod` or `make job`, the specified files will be automatically uploaded (and overwrites the preexisting file) to the pod or job. This is particularly useful when you are debugging and don't want to make git commit. By default, `config/kube.yaml`, `config/launch.yaml`, and `.env` will be uploaded. You can specify `file: null` to disable this behavior. You can also run `make copy pod=<pod_name>` to upload files to a running pod. 
+>
+> - You can specify an additional file section. (example: `file: [src/temp.py]`). Then, when you run `make pod` or `make job`, the specified files will be automatically uploaded (and overwrites the preexisting file) to the pod or job. This is particularly useful when you are debugging and don't want to make git commit. By default, `config/kube.yaml`, `config/launch.yaml`, and `.env` will be uploaded. You can specify `file: null` to disable this behavior. You can also run `make copy pod=<pod_name>` to upload files to a running pod.
 >   - This only supports a limited number of **text files** and will fill the command section with encoding text. The advantage is that you don't need to worry about file uploads for every job or pod creation. If your file section is too long, the pod could fail due to command length limit.
 > - The hparam sections can be a list of hparam dictionaries with the *same keys*. See below for an example. Why do we need this? Sometimes we don't want to run all combinations of hyperparameters, but only a subset of them. In this case, `make` will create three jobs, `train=paper`, `train=original`, and `train=scale`.
+>
 > ```
 > hparam:
 >     train:
@@ -149,15 +162,17 @@ run:
 >           _lr_scheduler: constant
 >           _lr_warmup_steps: 500
 > ```
-> 
-> - Overridable kube fields can also be directly specified at the root level of `launch.yaml`. Examples are 
+>
+> - Overridable kube fields can also be directly specified at the root level of `launch.yaml`. Examples are
+>
 > ```
 > model: ...
 > dataset: ...
 > run: ...
 > gpu_count: 1
 > ```
->   They will override the corresponding fields in `kube.yaml`.
+>
+> They will override the corresponding fields in `kube.yaml`.
 
 #### Running Locally
 
@@ -245,7 +260,6 @@ You can now navigate to the shell of the pod by running: `kubectl exec -it <YOUR
 
 ### Remote Batch Jobs
 
-
 To run all possible combinations of experiments in parallel with Nautilus, run: `make job`
 
 Example output:
@@ -262,6 +276,7 @@ job.batch/example-median-data2 created
 ```
 
 After a while, you can run `kubectl logs -f <YOUR-USERNAME>-example-average-data1` to check the logs of the job. You would see
+
 ```
 Downloaded data/1.txt to ./data/1.txt
 Downloaded data/2.txt to ./data/2.txt
@@ -281,7 +296,7 @@ Finally, run `make delete` to cleanup all workloads.
 ```yaml
 ##### Project-wise configuration, should be the same across all experiments
 # Will not be overwritten by the launch.yaml
-project_name: str, required, used for k8s resource name, env name and more
+project_name: str, required, used for k8s resource name, env name and more, no underscore_, hyphen- allowed
 user:         str, required, k8s user name
 namespace:    str, required, k8s namespace
 
@@ -352,8 +367,6 @@ Ensure consistency in project_name across your GitLab repository (<project_name>
 
 Your GitLab username would be used as user to label your kube workloads (label: <user>). For registry details, refer to the GitLab container registry documentation.
 
-
-
 ## 3. S3 Utilities Specification
 
 ### Usage
@@ -395,7 +408,6 @@ download_s3_path(folder_path)
 
 If your Python script is invoked via `make`, the environment variables will be automatically loaded.
 
-
 ## 4. Example Creation of [Nautilus](https://portal.nrp-nautilus.io/) Gitlab Image
 
 This section will guide you through the process of creating a GitLab Docker image based on your git repo using the Nautilus platform. This is useful for those looking to automate their deployment and integration workflows using GitLab's CI/CD features. The result image can integrate nicely with Kubeutils.
@@ -403,7 +415,9 @@ This section will guide you through the process of creating a GitLab Docker imag
 > Note: If Nautilus SSH is no longer `gitlab-ssh.nrp-nautilus.io:30622`, please modifies `SSH_CONFIG` and .`gitlab-ci.yml` correspondingly.
 
 ### Prerequisites
+
 Before you begin, make sure you have:
+
 - A Github account, where you can register at [here](https://github.com).
 - A Nautilus Gitlab account, where you can register at [here](https://gitlab.nrp-nautilus.io/).
 - Familiarity with SSH, docker container, continuous integration and deployment (CI/CD) concepts
@@ -411,7 +425,7 @@ Before you begin, make sure you have:
 ### Steps
 
 1. Create a git repo at Nautilus [Gitlab](https://gitlab.nrp-nautilus.io/) with the name `example`. Don't initialize the repository with any file. If you want to use a different name, remember to replace `example` with your repo name in the following steps. Also, make sure your name is all lowercase and without any special characters.
-2. Create a git repo with the same name at Github. 
+2. Create a git repo with the same name at Github.
 3. Generate an SSH key pair with the name `example` on your local machine using the following command: `ssh-keygen -f example -N ""`.
 4. Generate an SSH key pair with the name `example-write` on your local machine using the following command: `ssh-keygen -f example-write -N ""`.
 
@@ -420,39 +434,47 @@ Before you begin, make sure you have:
 5. Add the public key `example.pub` to Gitlab Repo - Settings - **Deploy Keys**. Title: `example`, **don't** grant write permission.
 6. Add the public key `example-write.pub` to Gitlab Repo - Settings - **Deploy Keys**. Title: `example-write`, grant write permission.
 7. Add the public key `example.pub` to Github Repo - Settings - **Deploy Keys**. Title: `example`, **don't** grant write permission.
-7. Deploy tokens are used to securely download (pull) Docker images from your GitLab registry without requiring sign-in. Under Gitlab Repo - Settings - Repository - **Deploy Tokens**, create new deploy token with name `example-write-registry`. Grant both `write_registry` and `read_registry` access. Take a note of the `username` and `password` for this token for Gitlab CI. 
-8. Create new deploy token with name `example-read-registry`. Grant `read_registry` access. Take a note of the `username` and `password` for this token for Kubernetes experiments.
+8. Deploy tokens are used to securely download (pull) Docker images from your GitLab registry without requiring sign-in. Under Gitlab Repo - Settings - Repository - **Deploy Tokens**, create new deploy token with name `example-write-registry`. Grant both `write_registry` and `read_registry` access. Take a note of the `username` and `password` for this token for Gitlab CI.
+9. Create new deploy token with name `example-read-registry`. Grant `read_registry` access. Take a note of the `username` and `password` for this token for Kubernetes experiments.
 
 > Note: The `example-write-registry` token is used for pushing the image to the registry from Github, while the `example-read-registry` token is used in the kube cluster to pull the image.
 
-9. Run the follow command to upload the read tokens to the cluster. 
+9. Run the follow command to upload the read tokens to the cluster.
+
 ```bash
 kubectl create secret docker-registry example-read-registry \
     --docker-server=gitlab-registry.nrp-nautilus.io \
     --docker-username=<username> \
     --docker-password=<password>
 ```
+
 10. In **Github** Repo - Settings - Secrets and variables - **Actions**, enter the following repository secrets:
-  - SSH_CONFIG: `SG9zdCBnaXRodWIuY29tCiAgSG9zdE5hbWUgZ2l0aHViLmNvbQogIFVzZXIgZ2l0CiAgSWRlbnRpdHlGaWxlIH4vLnNzaC9pZF9yc2EKCkhvc3QgZ2l0bGFiLXNzaC5ucnAtbmF1dGlsdXMuaW8KICBIb3N0TmFtZSBnaXRsYWItc3NoLm5ycC1uYXV0aWx1cy5pbwogIFVzZXIgZ2l0CiAgUG9ydCAzMDYyMgogIElkZW50aXR5RmlsZSB+Ly5zc2gvaWRfcnNhCgo=`, which is the base64 encoding of
-  ```
+
+- SSH_CONFIG: `SG9zdCBnaXRodWIuY29tCiAgSG9zdE5hbWUgZ2l0aHViLmNvbQogIFVzZXIgZ2l0CiAgSWRlbnRpdHlGaWxlIH4vLnNzaC9pZF9yc2EKCkhvc3QgZ2l0bGFiLXNzaC5ucnAtbmF1dGlsdXMuaW8KICBIb3N0TmFtZSBnaXRsYWItc3NoLm5ycC1uYXV0aWx1cy5pbwogIFVzZXIgZ2l0CiAgUG9ydCAzMDYyMgogIElkZW50aXR5RmlsZSB+Ly5zc2gvaWRfcnNhCgo=`, which is the base64 encoding of
+
+```
 Host github.com
-  HostName github.com
-  User git
-  IdentityFile ~/.ssh/id_rsa
+HostName github.com
+User git
+IdentityFile ~/.ssh/id_rsa
 
 Host gitlab-ssh.nrp-nautilus.io
-  HostName gitlab-ssh.nrp-nautilus.io
-  User git
-  Port 30622
-  IdentityFile ~/.ssh/id_rsa
-  ```
-  - DOCKER_PASSWORD: the write `password` from the previous step.
-  - DOCKER_USERNAME: the write `username` from the previous step.
-  - GIT_DEPLOY_KEY: base64 encode the **read** deploy key you created (`base64 -i example`, don't include any new lines).
-  - GITLAB_DEPLOY_KEY: base64 encode the **write** deploy key you created (`base64 -i example-write`, don't include any new lines).
-  - GITLAB_USERNAME: your gitlab user name, which is in the middle of your gitlab repo URL.
+HostName gitlab-ssh.nrp-nautilus.io
+User git
+Port 30622
+IdentityFile ~/.ssh/id_rsa
+```
+
+- DOCKER_PASSWORD: the write `password` from the previous step.
+- DOCKER_USERNAME: the write `username` from the previous step.
+- GIT_DEPLOY_KEY: base64 encode the **read** deploy key you created (`base64 -i example`, don't include any new lines).
+- GITLAB_DEPLOY_KEY: base64 encode the **write** deploy key you created (`base64 -i example-write`, don't include any new lines).
+- GITLAB_USERNAME: your gitlab user name, which is in the middle of your gitlab repo URL.
+
 7. Create the following files under your repo:
-  - `environment.yml`
+
+- `environment.yml`
+
 ```yaml
 name: example
 channels:
@@ -463,10 +485,11 @@ dependencies:
   - pip
   - poetry=1.*
 ```
-  - `Dockerfile` 
-    - Can be copied using `cp src/toolbox/Dockerfile .`
-    - Can be copied using `mkdir -p .github/workflows; cp src/toolbox/workflows/docker.yml .github/workflows/docker.yml`
-    - Can be copied using `mkdir -p .github/workflows; cp src/toolbox/workflows/mirror.yml .github/workflows/mirror.yml`
+
+- `Dockerfile`
+  - Can be copied using `cp src/toolbox/Dockerfile .`
+  - Can be copied using `mkdir -p .github/workflows; cp src/toolbox/workflows/docker.yml .github/workflows/docker.yml`
+  - Can be copied using `mkdir -p .github/workflows; cp src/toolbox/workflows/mirror.yml .github/workflows/mirror.yml`
 
 You shall verify the environment creation on your local machine:
 
@@ -482,13 +505,15 @@ poetry add numpy==1.26.2
 ...
 ## Run code on your local machine to make sure all required dependencies are installed.
 ```
-This procedure creates the lock file, `poetry.lock`. Commit it to the git repository. Push to the Github will compile the image. Any modification of the environment related files (see workflow file) will trigger the image update. 
+
+This procedure creates the lock file, `poetry.lock`. Commit it to the git repository. Push to the Github will compile the image. Any modification of the environment related files (see workflow file) will trigger the image update.
 
 You may check out `https://github.com/ZihaoZhou/example` and `https://gitlab.nrp-nautilus.io/ZihaoZhou/example` as a reference.
 
 ### (Alternative) Manual Docker Build
 
 If you:
+
 - Don't need CI
 - Don't have full control over the repository
 - Use different branch than `main` or `master`
@@ -503,6 +528,7 @@ You can follow the following steps.
 4. Generate a write SSH key pair ...
 5. Add the public key to Gitlab ...
 6. Create folder `.ssh/` in your working directory, copy your SSH read private key to `.ssh/` and rename it to `id_rsa`. Create the `.ssh/config` file with the following content:
+
 ```config
 Host gitlab-ssh.nrp-nautilus.io
     HostName gitlab-ssh.nrp-nautilus.io
@@ -517,13 +543,13 @@ Host github.com
 ...
 (or other git hosting service)
 ```
+
 > **Warning**: Add `/.ssh*` to your `.gitignore` to avoid uploading your secret credentials to the repository.
 
 7. Run `ssh-keyscan -p 30622 gitlab-ssh.nrp-nautilus.io >> .ssh/known_hosts`, `ssh-keyscan github.com >> .ssh/known_hosts` (or other git hosting service) to add the host key to known_hosts.
-
 8. Copy the Dockerfile to your local working directory, and then change PROJECT_NAME to your project name, change PROJECT_SSH_URL to your hosting service URL. You may switch to different branch by adding `--branch <branch-name>` after git clone.
-
 9. Run the following command to build the image:
+
 ```bash
 docker build -t gitlab-registry.nrp-nautilus.io/<user-name>/<project-name>:<custom-tag> .
 docker login gitlab-registry.nrp-nautilus.io
@@ -534,9 +560,11 @@ docker push gitlab-registry.nrp-nautilus.io/<user-name>/<project-name>:latest
 ```
 
 10. If you encountered any error, you may comment out error lines in the Dockerfile and then run
+
 ```bash
 docker run -it /bin/bash gitlab-registry.nrp-nautilus.io/<user-name>/<project-name>:<custom-tag> /bin/bash
 ```
-  to enter the image and test the following command manually.
+
+to enter the image and test the following command manually.
 
 11. After the image is successfully pushed, you can free space and delete all built images by running `docker images | grep '<project-name>' | awk '{print $3}' | xargs docker rmi` and `docker rmi $(docker images -f "dangling=true" -q)`.
