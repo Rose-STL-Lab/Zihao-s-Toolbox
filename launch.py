@@ -6,6 +6,7 @@ import os
 import inspect
 from typing import get_type_hints, get_origin, get_args, Dict, List, Any, Union
 import subprocess
+from copy import deepcopy
 
 
 logger = CustomLogger()
@@ -259,13 +260,16 @@ if __name__ == '__main__':
             del launch_settings["dataset"]
         if "run" in launch_settings:
             del launch_settings["run"]
+            
+        pod_settings = deepcopy(settings)
+        pod_settings.update(launch_settings)
         
         config = create_config(
             name=name,
             command="",
             interactive=True,
             env=load_env_file(),
-            **launch_settings
+            **pod_settings
         )
         yaml.Dumper.ignore_aliases = lambda *_: True
         
